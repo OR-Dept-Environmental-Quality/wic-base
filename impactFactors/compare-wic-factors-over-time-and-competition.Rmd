@@ -1,0 +1,6 @@
+---
+title: "Compare WIC factors over time and to competing sources"
+output: html_notebook
+---
+
+This is a placeholder file.  Eventually I would like to write a markdown analysis or app that compares WIC impact factors over time and shows how they match up to competing sources, such as WARM.

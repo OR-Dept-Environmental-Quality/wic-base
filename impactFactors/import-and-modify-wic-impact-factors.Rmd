@@ -1,0 +1,331 @@
+---
+title: "Importing and modifying WIC impact factors"
+output: html_notebook
+---
+
+by Martin Brown, Martin.Brown@state.or.us
+
+In this R Markdown file, I'm going to import, slightly modify, and then save the impact factors for the WIC model.  
+
+WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files.  
+
+Once imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the [Technical Overview of the Waste Impact Calculator](), some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as usable objects for other R sessions or use outside of WIC.
+
+There are some complications along the way.  The most notable is the fact that there are actually 2 different files I need to import... impact factors where biogenic carbon factors represent the "slash" approach, and impact factors where biogenic carbon factors represent the "epaFcs" approach.  These biogenic factors need to be labeled appropriately and merged so there is only one impact factor file in the end.
+
+The following rough steps apply.
+* Import the two Gabi "pivot table export" CSVs.
+* Concatenate the two raw imports, labeling for slash and epaFcs.
+* Filter and parse the raw imports.
+* Filter and relabel impact categories
+* Apply the Slash and EpaFCS labels to biogenic carbon fields.
+* Save an 'unmodified' version of the file(s) for quality checking vs. Gabi model.
+* Apply modifications called for in the Technical Overview.
+* Save in suitable formats for future use.
+
+### Setting up
+```{r}
+# checking current working directory
+getwd()
+
+# setting up workspace
+library(tidyverse)
+library(openxlsx)
+
+# naming Gabi "pivot table export" files
+csSlashFileSpec  <-
+  "source/current/wicFactorsFromGabiIncludingSlashMethod.csv"
+csEpaFcsFileSpec <-
+  "source/current/wicFactorsFromGabiIncludingEpaFcsMethod.csv"
+
+# naming the filespecs for two other files necessary for 
+# the import
+gabiExportDateFileSpec <-
+  "source/current/gabiExportDate.txt"
+impactCategoryPickerFixerFileSpec <-
+  "source/current/impactCategoryPickerFixer.xlsx"
+
+# misc parameters
+randomFewNo <- 10
+```
+
+### Importing the Gabi CSV's and concatenating them
+
+Importing raw CSV's, labeling and concatenating them by fileSource, and printing out a few randomly chosen sample lines. 
+```{r}
+# importing
+csSlashRaw <- 
+  data.table::fread(
+    file=csSlashFileSpec,
+    sep=";",
+    skip=10,     
+#    nrows=200,  # use a row limit for testing
+    header=TRUE
+  ) %>%
+  mutate(fileSource="Slash")
+
+csEpaFcsRaw <- 
+  data.table::fread(
+    file=csEpaFcsFileSpec,
+    sep=";",
+    skip=10,     
+#    nrows=200,  # use a row limit for testing
+    header=TRUE
+  ) %>%
+  mutate(fileSource="EpaFcs")
+
+# merging (sources are now separable by fileSource)
+csRaw <-
+  bind_rows(csSlashRaw, csEpaFcsRaw)
+
+# importing the datestamp
+dateStamps <- 
+  read.csv(gabiExportDateFileSpec) %>%
+  mutate(
+    gabiExportDate=lubridate::ymd(gabiExportDate),
+    wicImportDate=lubridate::today()
+  )
+
+# eliminating unnecessary objects
+rm(csEpaFcsRaw, csSlashRaw)
+
+# printing out a few random records from the 
+# imported records
+csRaw %>% sample_n(randomFewNo) %>% print()
+
+```
+
+
+### Filtering and parsing the raw import.
+
+As those random records  show, there's a lot of extraneous stuff in those Gabi imports.  I need to filter down to the rows that actually contain the rolled-up impact factors, and then parse some of the values into more intuitive/distinct fields.
+
+```{r}
+csRawObjectPath <-
+   csRaw %>% 
+  # only use one particular Object path that represents 
+  # summed up impact factors
+   filter(`Object path`=="Waste Impact Calculator <LC>") %>%
+  # eliminate unneeded fields
+   select(-Scenario, -`Object path`, 
+         -`Object UUID`, -`Grouping: Nation`,
+         -`Grouping: Type`, -`Grouping: Enterprise`, 
+         - `Grouping: User Defined`,
+         -`Inputs/Outputs single table view`
+   ) %>%
+   mutate(
+     # parse the 'Full name/Local name' field
+     # into material, LCstage, and disposition
+      material=str_sub(
+         `Full name/Local name`,
+         start=1,
+         end=str_locate(`Full name/Local name`,"_")[,1]-1
+         ),
+      theRestOfIt=str_sub(
+         `Full name/Local name`,
+         start=str_locate(`Full name/Local name`,"_")[,1]+1,
+         end=str_length(`Full name/Local name`)
+         ),
+      LCstage=str_sub(
+         theRestOfIt,
+         start=1,
+         end=str_locate(theRestOfIt,"_")[,1]-1
+         ),
+      disposition=str_sub(
+         theRestOfIt,
+         start=str_locate(theRestOfIt,"_")[,1]+1,
+         end=str_length(theRestOfIt)
+         )
+   ) %>%
+   select(-theRestOfIt)
+
+# print the random records
+csRawObjectPath %>% sample_n(randomFewNo) %>% print()
+```
+
+### Filter and relabel impact categories
+
+The impactCategories that WIC needs are in the field Quantity, but they're all mixed up with corporate sources like "TRACI 2.1". Rather than writing a parsing routine, I'm going to refer to a lookup table that will do the parsing -- as well as choose a short list of impact categories to use and apply corrections to the names.
+
+First I need to create the lookup table -- something I should only do once, as the table is meant to be edited manually.  But here is the format:
+
+```{r}
+# get all the unique combinations of Quantity Folder, Quantity, and Unit
+impactCategoryPickerFixerStarter <-
+  csRawObjectPath %>%
+  select(c("Quantity Folder", "Quantity", "Unit")) %>%
+  distinct() %>%
+  # add columns I will need to fill in manually
+  mutate(
+    corporateSource = NA,
+    impactCategoryLong = NA,
+    shortList = as.logical(NA),
+    impactCategory = NA,
+    impactUnits = NA
+  ) %>%
+  arrange(`Quantity Folder`, Quantity)
+# saving it as an Excel file
+write.xlsx(
+  impactCategoryPickerFixerStarter,
+  file="source/current/impactCategoryPickerFixerStarter.xlsx"
+)
+```
+
+Ok, I created the table and filled it in, but saved it with a different filename just in case.
+
+Let's import the lookup file and then merge it ... hopefully we won't lose any records.  Once it's joined, I can start carving out only the fields and impact categories I want.
+
+```{r}
+# importing impactCategoryPickerFixer lookup file
+impactCategoryPickerFixer <-
+  readxl::read_excel(
+    path=impactCategoryPickerFixerFileSpec
+  )
+
+# merging 
+csSelected <-
+  full_join(
+    csRawObjectPath,
+    impactCategoryPickerFixer,
+    by=c("Quantity Folder", "Quantity")
+  ) %>%
+  # filtering only short-listed impact categories
+  filter(shortList==TRUE) %>%
+  # keep only fields I want in this order
+  select(fileSource, material, LCstage, disposition, 
+         corporateSource, impactCategory, impactUnits,
+         Value, impactCategoryLong) %>%
+  # rename one field
+  rename(impactFactor=Value) %>%
+  # sort
+  arrange(fileSource, material, LCstage, disposition,
+          corporateSource, impactCategory, impactUnits,
+          impactFactor) %>%
+  # eliminate duplicates (though there shouldn't be any)
+  distinct()
+
+# print a few at random
+csSelected %>% sample_n(10) %>% print()
+
+```
+
+This is getting a lot closer to a usable impact factor file, but the LCstage and disposition factors still need a little recombining. Look at how they relate:
+
+```{r}
+table(csSelected$disposition, csSelected$LCstage, useNA = "ifany")
+```
+
+There are only two LCstages -- endOfLife and production.  Meanwhile the end-of-life dispositions include transport versions.  Let's assign the end-of-life transport stuff to its own LCstage.
+
+Plus there's something weird going on with Textiles, which has a disposition called "recyclingGeneric <LC>".  
+
+```{r}
+csSelected2 <-
+   csSelected %>%
+   mutate(
+     # fix that weird Textiles thing
+      disposition = 
+         ifelse(
+            material=="Textiles" & disposition=="recyclingGeneric <LC>",
+            "recyclingGeneric",
+            disposition
+         ),
+      # create the endOfLifeTransport LCstage
+      LCstage =
+         ifelse(
+           str_sub(
+              string = disposition,
+              start = str_length(disposition)-9,
+              end = str_length(disposition)
+           ) == "_transport" 
+           & disposition != "production_transport",
+           "endOfLifeTransport",
+           LCstage
+         ),
+      # fix dispositions
+      disposition =
+        ifelse(
+          str_sub(
+              string = disposition,
+              start = str_length(disposition)-9,
+              end = str_length(disposition)
+           ) == "_transport" 
+           & disposition != "production_transport",
+          str_sub(
+            string=disposition,
+            start=1,
+            end=str_length(disposition)-10
+          ),
+          disposition
+        )
+   )
+table(
+   csSelected2$disposition, 
+   csSelected2$LCstage,
+   useNA = "ifany"
+   )
+```
+
+Hmm it looks like something doesn't have a production_transport.
+What is it?
+
+```{r}
+junk <-
+   filter(
+      csSelected2, 
+      disposition=="production" | disposition=="production_transport"
+   )
+table(junk$material,junk$disposition)
+```
+
+It's food waste.  Check that later.
+
+### Applying the Slash & EpaFcs labels 
+
+Right now there's a lot of redundancy in this data table.  There are two versions of the impact factors in there, one where biogenic GHG factors were calculated using the Slash method, the other where they were calculated using the EpaFcs method.  Anything that is not a biogenic GHG factor is merely duplicated.  So I've got to correctly label those biogenic GHG categories, and remove the duplicates.
+
+Here are the impactCategories currently in the table, and their relation to fileSource.
+
+```{r}
+table(csSelected2$impactCategory, csSelected2$fileSource, useNA="always")
+```
+
+So the impactCategories that include "biogenic" are the ones that need to be changed.
+
+```{r}
+csSelected3 <-
+  csSelected2 %>%
+  mutate(
+    impactCategory =
+        str_replace(
+          impactCategory, 
+          "(biogenic)",
+          fileSource
+        )
+  )
+table(
+  csSelected3$impactCategory, csSelected3$fileSource, useNA="always"
+)
+```
+
+That looks like it worked.  Now I can remove duplicates.
+
+```{r}
+csSelected4 <-
+  csSelected3 %>%
+  select(-fileSource) %>%
+  distinct() %>%
+  arrange(impactCategoryLong, material, disposition)
+```
+
+### Saving an "unaltered" import for checking.
+
+```{r}
+write.xlsx(
+  csSelected4,
+  file="source/current/importedButUnalteredForCheckingVsGabi.xlsx"
+)
+```
+
+Hmm... everything so far has checked out.  I have q's about the substance of the impact factors, but the import process has been ok.
+Need to move on to modifying the factors.
