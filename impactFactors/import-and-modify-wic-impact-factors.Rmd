@@ -311,7 +311,7 @@ table(
 That looks like it worked.  Now I can remove duplicates.
 
 ```{r}
-csSelected4 <-
+impactFactorsSelected <-
   csSelected3 %>%
   select(-fileSource) %>%
   distinct() %>%
@@ -322,10 +322,282 @@ csSelected4 <-
 
 ```{r}
 write.xlsx(
-  csSelected4,
+  impactFactorsSelected,
   file="source/current/importedButUnalteredForCheckingVsGabi.xlsx"
 )
 ```
 
 Hmm... everything so far has checked out.  I have q's about the substance of the impact factors, but the import process has been ok.
 Need to move on to modifying the factors.
+
+### Modifying factors 
+
+What I've got so far (in impactFactorsSelected) is good, but it's a little complex for use in most applications of the Waste Impact Calculator.  This set of factors has transport factors separated out for both production and end of life.  We don't need separate production and production transport factors.  Moreover the names for the dispositions are really long.  
+
+To do all this I'm going to have to split the impact factor file up and reassemble it after tweaking appropriately.
+
+```{r}
+# isolating production impact factors
+ifProdJunk1 <- filter(
+  impactFactorsSelected %>% select(-impactCategoryLong),
+  LCstage == "production"
+  )
+# summing those up (combining production & production transport)
+ifProdJunk2 <- summarise(
+  group_by(
+    ifProdJunk1, 
+    material, LCstage, corporateSource, impactCategory, impactUnits
+  ),
+  impactFactor=sum(impactFactor, na.rm=T)
+  ) %>%
+  ungroup() %>%
+  mutate(disposition="production")
+# so ifProdJunk2 has the production impact factors
+
+# isolating end-of-life impact factors
+ifEOLJunk1 <- filter(
+  impactFactorsSelected %>% select(-impactCategoryLong),
+  LCstage != "production"
+  )
+
+# now I can recombine the ifProdJunk2 & ifEOLJunk3
+ifJunk1 <- bind_rows(
+  ifProdJunk2,
+  ifEOLJunk1
+  )
+
+```
+
+Currently this list is still pretty long.
+I'm going to cut some dispositions as unrealistic.
+I'm going to rename some dispositions for clarity.
+And I'm going to set the implied mileage of the end-of-life impact factors.
+
+```{r}
+# cutting some uncommon dispositions
+ifJunk2 <- mutate(
+  ifJunk1,
+  cutFlag = case_when(
+#    disposition == "incinerationNoER" ~ TRUE,
+#    disposition == "recyclingFiberglass" ~ TRUE,
+    disposition == "reuse" ~ TRUE,
+    disposition == "reuseContainer" ~ TRUE
+    )
+  ) %>%
+  filter(is.na(cutFlag)) %>%
+  select(-cutFlag) %>%
+  # renaming some awkward dispositions
+  mutate(
+    disposition = case_when(
+      disposition == "recyclingGeneric" ~ "recycling",
+      disposition == "recyclingAggregate" ~ "useAsAggregate",
+      disposition == "recyclingToAggregate" ~ "useAsAggregate",
+      disposition == "recyclingToContainer" ~ "recycling",
+      disposition == "incinerationER" ~ "combustion",
+      disposition == "incinerationNoER" ~ "combustionNoER",
+      TRUE ~ disposition
+      )
+    ) %>%
+  # adding implied mileage for EOL transport impact factors
+  mutate(
+    impliedMiles = case_when(
+      LCstage == "endOfLifeTransport" & disposition == "landfilling" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "recycling" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "composting" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "useAsAggregate" ~ 20,
+      LCstage == "endOfLifeTransport" & disposition == "anaerobicDigestion" ~ 180,
+      LCstage == "endOfLifeTransport" & disposition == "combustion" ~ 180,
+      TRUE ~ 180
+      )
+    ) %>%
+  # reordering the variables
+  select(material, LCstage, disposition, corporateSource,
+         impactCategory,
+         impactUnits, impactFactor, impliedMiles)
+
+# saving that as the dedicated impact factor file
+impactFactors1 <- 
+  ifJunk2 %>% 
+  arrange(
+    material, corporateSource, impactCategory, LCstage, disposition
+  )
+```
+
+If it all looks good, I can delete the temporary objects.
+```{r}
+# deleting work objects
+rm(ifEOLJunk1,  ifJunk1, ifJunk2, ifProdJunk1,
+   ifProdJunk2,  impactFactorsSelected,
+   csEpaFcsFileSpec, csRaw, csRawObjectPath,
+   csSelected, csSelected2, csSelected3,
+   csSlashFileSpec, impactCategoryPickerFixer,
+   impactCategoryPickerFixerFileSpec,
+   impactCategoryPickerFixerStarter,
+   junk)
+```
+
+The object impactFactors1 has most of the impact factors in a pretty clean, tidy state, but still needs a few more improvements.
+
+Substantially, the end-of-life transport factor needs to be modified.  Canepa has calculated it so it includes end-of-life transport from the pickup point (e.g. curbside) to final processing.  However, for the purpose of using WIC to decide on local solid waste management this is not really the way to frame the transport.  Local managers are only in control of the first parts of that process... from the pickup point to the local disposal facility or the first recycling marketplace.
+
+So I need to split up the end-of-life transport factor for each material into two parts... the part managers can control, and those they can't.  
+
+* Canepa says that the landfill distance issum a good estimate of the controllable distance for each material.
+* Anything beyond the landfill distance is really a part of the impacts for that end-of-life PROCESS (e.g. recycling).  So that should be added to the impacts for that process.
+
+So, for every record in the impact factor database, I need to attach two things:
+
+* The landfilling transport impact factor for that material; and
+* The difference between the current impact factor and the landfilling transport impact factor
+
+Then I need to apply one of those two things as corrections, but only to certain life cycle stages and dispositions.
+
+```{r}
+# getting landfill transport impacts
+tempLandfillImpact <-
+  impactFactors1 %>% 
+  filter(disposition=="landfilling" & LCstage=="endOfLifeTransport") %>%
+  select(-disposition, -impliedMiles, -LCstage) %>%
+  rename(landfillTransportFactor = impactFactor)
+
+# figuring the difference between the landfillTransportFactor
+# for each material and the other transport impacts
+tempTransportDifferences <-
+  left_join(
+    impactFactors1,
+    tempLandfillImpact,
+    by = c("material", "corporateSource", "impactCategory", "impactUnits")
+  ) %>%
+  filter(LCstage=="endOfLifeTransport") %>%
+  select(-LCstage, -impliedMiles) %>%
+  mutate(
+    transportDifference = impactFactor - landfillTransportFactor
+  ) %>%
+  select(-impactFactor)
+
+# attaching these two quantities to every row in the impact factor
+# file
+impactFactorsBetter <-
+  left_join(
+    impactFactors1,
+    tempTransportDifferences,
+    by = 
+      c("material", "disposition", 
+        "corporateSource", 
+        "impactCategory", "impactUnits")
+  ) %>%
+  # correcting when necessary
+  mutate(
+    impactFactor2 = case_when(
+      # no correction for production impacts
+      LCstage == "production" ~ impactFactor,
+      # no correction for certain end-of-life impacts
+      (LCstage == "endOfLifeTransport" | LCstage == "endOfLife") & 
+         (disposition == "landfilling" | 
+         disposition == "combustion" |
+         disposition == "combustionNoER" |
+         disposition == "anaerobicDigestion" | 
+         disposition == "composting" |
+         disposition == "useAsAggregate") 
+          ~ impactFactor,
+      # recycling-related transport impacts set to landfill value
+        LCstage == "endOfLifeTransport" &
+        (disposition != "landfilling" & 
+         disposition != "combustion" &
+         disposition != "combustionNoER" & 
+         disposition != "anaerobicDigestion" & 
+         disposition != "composting" &
+         disposition != "useAsAggregate") 
+          ~ landfillTransportFactor,
+      # recycling-related process impacts get an addition
+      # due to non-local transport
+        LCstage == "endOfLife" &
+        (disposition != "landfilling" & 
+         disposition != "combustion" &
+         disposition != "combustionNoER" &
+         disposition != "anaerobicDigestion" & 
+         disposition != "composting" &
+         disposition != "useAsAggregate") 
+          ~ impactFactor + transportDifference
+    )
+  ) %>%
+  # cleaning up the file
+  select(
+    -impactFactor, -landfillTransportFactor, -transportDifference
+  ) %>%
+  rename(impactFactor=impactFactor2)
+```
+
+In addition, I find that the material "nonrecyclables" doesn't a production impact.  I'm just going to take it from the mean of the other materials.  This is probably something I should improve later, though, as it isn't weighted by any real waste stream.
+
+```{r}
+tempProductionImpacts <-
+  impactFactorsBetter %>%
+  filter(LCstage=="production") %>%
+  select(-impliedMiles) %>%
+  group_by(LCstage, disposition, impactCategory, impactUnits) %>%
+  summarize(productionMean = mean(impactFactor))
+impactFactorsBetter2 <-
+  left_join(
+    impactFactorsBetter,
+    tempProductionImpacts,
+    by = c("LCstage", "disposition", "impactCategory", "impactUnits")
+  ) %>%
+  mutate(
+    impactFactor =
+      ifelse(
+        material=="Nonrecyclables" & LCstage=="production",
+        productionMean,
+        impactFactor
+      )
+  ) %>%
+  select(-productionMean)
+```
+
+Finally, I need to address what to do with all of the miscellaneous materials that may turn up in a wastestream but are not specified by Peter C's impact factors.  What I'm going to do is come up with averages for each impact category and disposition, and then apply the material name "Other" to it.  As Peter C's list of impact factors grows, the materials covered by "Other" should shrink.
+
+```{r}
+tempOtherImpacts <-
+  impactFactorsBetter2 %>%
+  group_by(LCstage, disposition, corporateSource, 
+           impactCategory, impactUnits) %>%
+  summarise(
+    impactFactor=mean(impactFactor, na.rm=T),
+    impliedMiles=mean(impliedMiles, na.rm=T)
+  ) %>%
+  ungroup() %>%
+  mutate(material="Other")
+impactFactorsBetter3 <-
+  bind_rows(impactFactorsBetter2, tempOtherImpacts) %>%
+  arrange(corporateSource, 
+          impactCategory, material, LCstage, disposition
+  )
+```
+
+Now I can save the file with a better name. Also need to add a date stamp here.
+
+```{r}
+# applying date stamp & saving with better name
+impactFactorsDEQ <- 
+  left_join(
+    impactFactorsBetter3 %>% mutate(dummy=1),
+    dateStamps %>% mutate(dummy=1),
+    by="dummy"
+  ) %>%
+  select(-dummy)
+# deleting temp objects
+rm(impactFactorsBetter, impactFactorsBetter2, impactFactors1,
+   tempTransportDifferences, tempLandfillImpact,
+   tempProductionImpacts, tempOtherImpacts, impactFactorsBetter3)
+# saving to disk files
+saveRDS(
+  impactFactorsDEQ, "distributable/impactFactors.RData"
+)
+write.csv(
+  impactFactorsDEQ,
+  "distributable/impactFactors.csv",
+  row.names=FALSE
+)
+```
+
+Ok, it looks like the factors have been imported.  There's more checking to do, but it looks pretty good.

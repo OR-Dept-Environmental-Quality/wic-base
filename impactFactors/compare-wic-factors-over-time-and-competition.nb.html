@@ -1750,9 +1750,356 @@ summary {
 
 <!-- rnb-text-begin -->
 <p>This is a placeholder file. Eventually I would like to write a markdown analysis or app that compares WIC impact factors over time and shows how they match up to competing sources, such as WARM.</p>
+<p>below: some random old junk about how to import WARm.. needs to be fixed.</p>
+<div id="importing-warm-impact-factors" class="section level3">
+<h3>Importing WARM impact factors</h3>
+<p>I downloaded WARM impact factors from <a href="https://www.epa.gov/sites/production/files/2019-06/warm_v15.xls">here</a> into a local directory.</p>
+<p>Now let’s make it an R data frame.</p>
 <!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud2FybUdIR2ltcG9ydGVkIDwtXG4gIHJlYWRfeGxzKFxuICAgIHBhdGggPSBcImltcGFjdF9mYWN0b3JzL3dhcm1fdjE1Lnhsc1wiLCBcbiAgICBzaGVldCA9IFwiQW5hbHlzaXMgUmVzdWx0cyAoTVRDTzJFKVwiLCBcbiAgICByYW5nZSA9IFwiZTEyOms3MVwiLCBcbiAgICBjb2xfbmFtZXMgPSBjKFxuICAgICAgXCJ3YXJtTWF0ZXJpYWxcIixcbiAgICAgIFwicHJvZHVjdGlvblwiLFxuICAgICAgXCJyZWN5Y2xpbmdcIixcbiAgICAgIFwibGFuZGZpbGxpbmdcIixcbiAgICAgIFwiY29tYnVzdGlvblwiLFxuICAgICAgXCJjb21wb3N0aW5nXCIsXG4gICAgICBcImFuYWVyb2JpY0RpZ2VzdGlvblwiXG4gICAgKSxcbiAgICBjb2xfdHlwZXMgPSBjKFwidGV4dFwiLCByZXAoXCJudW1lcmljXCIsNikpXG4gIClcblxud2FybUVuZXJneUltcG9ydGVkIDwtXG4gIHJlYWRfeGxzKFxuICAgIHBhdGggPSBcImltcGFjdF9mYWN0b3JzL3dhcm1fdjE1Lnhsc1wiLCBcbiAgICBzaGVldCA9IFwiQW5hbHlzaXMgUmVzdWx0cyAoZW5lcmd5KVwiLCBcbiAgICByYW5nZSA9IFwiZTEyOms3MVwiLCBcbiAgICBjb2xfbmFtZXMgPSBjKFxuICAgICAgXCJ3YXJtTWF0ZXJpYWxcIixcbiAgICAgIFwicHJvZHVjdGlvblwiLFxuICAgICAgXCJyZWN5Y2xpbmdcIixcbiAgICAgIFwibGFuZGZpbGxpbmdcIixcbiAgICAgIFwiY29tYnVzdGlvblwiLFxuICAgICAgXCJjb21wb3N0aW5nXCIsXG4gICAgICBcImFuYWVyb2JpY0RpZ2VzdGlvblwiXG4gICAgKSxcbiAgICBjb2xfdHlwZXMgPSBjKFwidGV4dFwiLCByZXAoXCJudW1lcmljXCIsNikpXG4gIClcbiAgXG5gYGAifQ== -->
+<pre class="r"><code>warmGHGimported &lt;-
+  read_xls(
+    path = &quot;impact_factors/warm_v15.xls&quot;, 
+    sheet = &quot;Analysis Results (MTCO2E)&quot;, 
+    range = &quot;e12:k71&quot;, 
+    col_names = c(
+      &quot;warmMaterial&quot;,
+      &quot;production&quot;,
+      &quot;recycling&quot;,
+      &quot;landfilling&quot;,
+      &quot;combustion&quot;,
+      &quot;composting&quot;,
+      &quot;anaerobicDigestion&quot;
+    ),
+    col_types = c(&quot;text&quot;, rep(&quot;numeric&quot;,6))
+  )
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIkNvbXBhcmUgV0lDIGZhY3RvcnMgb3ZlciB0aW1lIGFuZCB0byBjb21wZXRpbmcgc291cmNlcyINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNClRoaXMgaXMgYSBwbGFjZWhvbGRlciBmaWxlLiAgRXZlbnR1YWxseSBJIHdvdWxkIGxpa2UgdG8gd3JpdGUgYSBtYXJrZG93biBhbmFseXNpcyBvciBhcHAgdGhhdCBjb21wYXJlcyBXSUMgaW1wYWN0IGZhY3RvcnMgb3ZlciB0aW1lIGFuZCBzaG93cyBob3cgdGhleSBtYXRjaCB1cCB0byBjb21wZXRpbmcgc291cmNlcywgc3VjaCBhcyBXQVJNLg==</div>
+warmEnergyImported &lt;-
+  read_xls(
+    path = &quot;impact_factors/warm_v15.xls&quot;, 
+    sheet = &quot;Analysis Results (energy)&quot;, 
+    range = &quot;e12:k71&quot;, 
+    col_names = c(
+      &quot;warmMaterial&quot;,
+      &quot;production&quot;,
+      &quot;recycling&quot;,
+      &quot;landfilling&quot;,
+      &quot;combustion&quot;,
+      &quot;composting&quot;,
+      &quot;anaerobicDigestion&quot;
+    ),
+    col_types = c(&quot;text&quot;, rep(&quot;numeric&quot;,6))
+  )
+  </code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Now make this into a tidy data frame… That means each datum is identified by classification variables in each row… the “long skinny” format. So I need each impactFactor to be identified by..</p>
+<p>impactCategory impactUnits warmMaterial disposition</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBmbGlwcGluZyB0aGUgR0hHIGZpbGUgdG8gbWFrZSBpdCBza2lubmllclxud2FybUdIR2ZsaXBwZWQgPC1cbiAgd2FybUdIR2ltcG9ydGVkICU+JVxuICBwaXZvdF9sb25nZXIoXG4gICAgY29scyA9IHByb2R1Y3Rpb246YW5hZXJvYmljRGlnZXN0aW9uLFxuICAgIG5hbWVzX3RvID0gXCJkaXNwb3NpdGlvblwiLFxuICAgIHZhbHVlc190byA9IFwiaW1wYWN0RmFjdG9yXCJcbiAgKSAlPiVcbiAgIyBhZGRpbmcgbW9yZSBpZGVudGlmeWluZyB2YXJpYWJsZXNcbiAgbXV0YXRlKFxuICAgIGltcGFjdENhdGVnb3J5ID0gXCJHbG9iYWwgd2FybWluZ1wiLFxuICAgIGltcGFjdFVuaXRzID0gXCJNVENPMkVcIlxuICApXG4jIGZsaXBwaW5nIHRoZSBlbmVyZ3kgZmlsZSB0byBtYWtlIGl0IHNraW5uaWVyXG53YXJtRW5lcmd5RmxpcHBlZCA8LVxuICB3YXJtRW5lcmd5SW1wb3J0ZWQgJT4lXG4gIHBpdm90X2xvbmdlcihcbiAgICBjb2xzID0gcHJvZHVjdGlvbjphbmFlcm9iaWNEaWdlc3Rpb24sXG4gICAgbmFtZXNfdG8gPSBcImRpc3Bvc2l0aW9uXCIsXG4gICAgdmFsdWVzX3RvID0gXCJpbXBhY3RGYWN0b3JcIlxuICApICU+JVxuICAjIGFkZGluZyBtb3JlIGlkZW50aWZ5aW5nIHZhcmlhYmxlc1xuICBtdXRhdGUoXG4gICAgaW1wYWN0Q2F0ZWdvcnkgPSBcIkVuZXJneSB1c2VcIixcbiAgICBpbXBhY3RVbml0cyA9IFwibWlsbGlvbiBCVFVcIlxuICApXG4jIG1lcmdpbmcgdGhvc2UgdHdvIGZpbGVzXG53YXJtRmFjdG9ycyA8LVxuICBiaW5kX3Jvd3Mod2FybUVuZXJneUZsaXBwZWQsIHdhcm1HSEdmbGlwcGVkKVxuYGBgIn0= -->
+<pre class="r"><code># flipping the GHG file to make it skinnier
+warmGHGflipped &lt;-
+  warmGHGimported %&gt;%
+  pivot_longer(
+    cols = production:anaerobicDigestion,
+    names_to = &quot;disposition&quot;,
+    values_to = &quot;impactFactor&quot;
+  ) %&gt;%
+  # adding more identifying variables
+  mutate(
+    impactCategory = &quot;Global warming&quot;,
+    impactUnits = &quot;MTCO2E&quot;
+  )
+# flipping the energy file to make it skinnier
+warmEnergyFlipped &lt;-
+  warmEnergyImported %&gt;%
+  pivot_longer(
+    cols = production:anaerobicDigestion,
+    names_to = &quot;disposition&quot;,
+    values_to = &quot;impactFactor&quot;
+  ) %&gt;%
+  # adding more identifying variables
+  mutate(
+    impactCategory = &quot;Energy use&quot;,
+    impactUnits = &quot;million BTU&quot;
+  )
+# merging those two files
+warmFactors &lt;-
+  bind_rows(warmEnergyFlipped, warmGHGflipped)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>ok, the WARM factors are in the object warmFactors. I can get rid of temporary objects.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm0obGlzdD1zZXRkaWZmKGxzKCksYyhcIndhcm1GYWN0b3JzXCIsIFwiaW1wYWN0X2ZhY3RvcnNfZGVxXCIpKSlcbmBgYCJ9 -->
+<pre class="r"><code>rm(list=setdiff(ls(),c(&quot;warmFactors&quot;, &quot;impact_factors_deq&quot;)))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="merge-deq-and-warm-factors" class="section level3">
+<h3>Merge DEQ and WARM factors</h3>
+<p>Now I need to do something that’s not exactly a “reproducible” task. I need to create a table that matches the material (and disposition?) names in the DEQ and WARM data sets.</p>
+<p>Once I have this table, I won’t need to rerun the code (and manual edits) that created it.</p>
+<p>Let’s explore the two sets a bit. Are their disposition names the same?</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucHJpbnQodW5pcXVlKGltcGFjdF9mYWN0b3JzX2RlcSRkaXNwb3NpdGlvbikpXG5wcmludCh1bmlxdWUod2FybUZhY3RvcnMkZGlzcG9zaXRpb24pKVxuYGBgIn0= -->
+<pre class="r"><code>print(unique(impact_factors_deq$disposition))
+print(unique(warmFactors$disposition))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>their disposition names look compatible. So I don’t need to fix those. Whew!</p>
+<p>let’s explore the material names…</p>
+<p>… did that.</p>
+<p>I have constructed a file that matches DEQ material names to WARM material names. This may need to be altered as DEQ’s own database expands. I’ll import it here.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGVxV0FSTXh3YWxrIDwtIFxuICByZWFkX2V4Y2VsKFxuICAgIFwiaW1wYWN0X2ZhY3RvcnMvd2FybV9vcmVnb25fZGVxX3h3YWxrLnhsc3hcIixcbiAgICByYW5nZT1cImE1OmIyN1wiXG4gIClcbmBgYCJ9 -->
+<pre class="r"><code>deqWARMxwalk &lt;- 
+  read_excel(
+    &quot;impact_factors/warm_oregon_deq_xwalk.xlsx&quot;,
+    range=&quot;a5:b27&quot;
+  )</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Now let’s apply that crosswalk to the warmFactors, so that the warmFactors have deq material names.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud2FybUZhY3RvcnNXaXRoREVRbmFtZXMgPC1cbiAgbGVmdF9qb2luKFxuICAgIHdhcm1GYWN0b3JzLFxuICAgIGRlcVdBUk14d2FsayxcbiAgICBieSA9IFwid2FybU1hdGVyaWFsXCJcbiAgKVxuYGBgIn0= -->
+<pre class="r"><code>warmFactorsWithDEQnames &lt;-
+  left_join(
+    warmFactors,
+    deqWARMxwalk,
+    by = &quot;warmMaterial&quot;
+  )</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Now I need to Assure that the units are compatible</p>
+<p>Let’s print out the categories and units in the DEQ file, and then the WARM file.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGlzdGluY3QoaW1wYWN0X2ZhY3RvcnNfZGVxLCBpbXBhY3RDYXRlZ29yeSwgaW1wYWN0VW5pdHMpXG5kaXN0aW5jdCh3YXJtRmFjdG9yc1dpdGhERVFuYW1lcywgaW1wYWN0Q2F0ZWdvcnksIGltcGFjdFVuaXRzKVxuYGBgIn0= -->
+<pre class="r"><code>distinct(impact_factors_deq, impactCategory, impactUnits)
+distinct(warmFactorsWithDEQnames, impactCategory, impactUnits)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Differences:</p>
+<ul>
+<li>the DEQ file does GHG impacts as kg CO2 Eq. per short ton of material.</li>
+<li>the WARM file does GHG impacts as metric tons CO2 per short ton of material</li>
+<li>the DEQ file does energy as MJ</li>
+<li>the WARM file does GHG impacts as million BTU</li>
+</ul>
+<p>So: I’ve got to</p>
+<ul>
+<li>multiply WARM’s GHG numbers by 1000 (because there are 1000 kg in a metric ton)</li>
+<li>multiply WARM’s energy numbers by 1055 (because there are 1,055.055853 MJ in 1 million BTU).</li>
+</ul>
+<p>Here I’ll make those corrections, and also flip the sign on WARM’s “production” impacts… because they count them as “savings” ((???!))</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud2FybUZhY3RvcnNXaXRoREVRbmFtZXNVbml0c0NvbXBhdGlibGUgPC1cbiAgd2FybUZhY3RvcnNXaXRoREVRbmFtZXMgJT4lXG4gIG11dGF0ZShcbiAgICBpbXBhY3RGYWN0b3IgPVxuICAgICAgY2FzZV93aGVuKFxuICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSBcIkVuZXJneSB1c2VcIiB+IGltcGFjdEZhY3RvcioxMDU1LjA1NTgsXG4gICAgICAgIGltcGFjdENhdGVnb3J5ID09IFwiR2xvYmFsIHdhcm1pbmdcIiB+IGltcGFjdEZhY3RvcioxMDAwXG4gICAgICApLFxuICAgIGltcGFjdFVuaXRzID1cbiAgICAgIGNhc2Vfd2hlbihcbiAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJFbmVyZ3kgdXNlXCIgfiBcIk1KXCIsXG4gICAgICAgIGltcGFjdENhdGVnb3J5ID09IFwiR2xvYmFsIHdhcm1pbmdcIiB+IFwia2cgQ08yIGVxLlwiXG4gICAgICApXG4gICkgJT4lXG4gIG11dGF0ZShcbiAgICBpbXBhY3RGYWN0b3IgPVxuICAgICAgaWZlbHNlKGRpc3Bvc2l0aW9uPT1cInByb2R1Y3Rpb25cIiwgLWltcGFjdEZhY3RvciwgaW1wYWN0RmFjdG9yKVxuICApXG5gYGAifQ== -->
+<pre class="r"><code>warmFactorsWithDEQnamesUnitsCompatible &lt;-
+  warmFactorsWithDEQnames %&gt;%
+  mutate(
+    impactFactor =
+      case_when(
+        impactCategory == &quot;Energy use&quot; ~ impactFactor*1055.0558,
+        impactCategory == &quot;Global warming&quot; ~ impactFactor*1000
+      ),
+    impactUnits =
+      case_when(
+        impactCategory == &quot;Energy use&quot; ~ &quot;MJ&quot;,
+        impactCategory == &quot;Global warming&quot; ~ &quot;kg CO2 eq.&quot;
+      )
+  ) %&gt;%
+  mutate(
+    impactFactor =
+      ifelse(disposition==&quot;production&quot;, -impactFactor, impactFactor)
+  )</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>I also need to add WARM names to the existing DEQ impact factors.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW1wYWN0RmFjdG9yc0RFUXBsdXNXQVJNbmFtZXMgPC1cbiAgbGVmdF9qb2luKFxuICAgIGltcGFjdF9mYWN0b3JzX2RlcSxcbiAgICBkZXFXQVJNeHdhbGssXG4gICAgYnk9XCJtYXRlcmlhbFwiXG4gIClcbmBgYCJ9 -->
+<pre class="r"><code>impactFactorsDEQplusWARMnames &lt;-
+  left_join(
+    impact_factors_deq,
+    deqWARMxwalk,
+    by=&quot;material&quot;
+  )</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="combine-the-sources" class="section level3">
+<h3>Combine the sources</h3>
+<p>While I combine the DEQ and WARM files, I’m going to label the records with a source (DEQ or WARM) and also group the impact categories.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW1wYWN0U291cmNlc1RvQ29tcGFyZSA8LVxuICBiaW5kX3Jvd3MoXG4gICAgaW1wYWN0RmFjdG9yc0RFUXBsdXNXQVJNbmFtZXMgJT4lXG4gICAgICBtdXRhdGUoXG4gICAgICAgIGlmU291cmNlID0gXCJERVFcIixcbiAgICAgICAgaW1wYWN0R3JvdXAgPVxuICAgICAgICAgIGNhc2Vfd2hlbihcbiAgICAgICAgICAgIGltcGFjdENhdGVnb3J5ID09IFwiQWlyIFBNMi41XCIgfiBcIkFpclwiLFxuICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJFbmVyZ3kgZGVtYW5kXCIgfiBcIkVuZXJneVwiLFxuICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJFdXRyb3BoaWNhdGlvblwiIH4gXCJFdXRyb3BoaWNhdGlvblwiLFxuICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJHbG9iYWwgd2FybWluZyAxMDBcIiB8XG4gICAgICAgICAgICAgIGltcGFjdENhdGVnb3J5ID09IFwiR2xvYmFsIHdhcm1pbmcgMTAwKEIpXCIgfFxuICAgICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSBcIkdsb2JhbCB3YXJtaW5nIDIwXCIgfFxuICAgICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSBcIkdsb2JhbCB3YXJtaW5nIDIwKEIpXCIgfiBcIkdIRydzXCIsXG4gICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSBcIkh1bWFuIHRveGljaXR5XCIgfiBcIlRveGljaXR5XCIsXG4gICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSBcIldhdGVyIGNvbnN1bXB0aW9uXCIgfiBcIldhdGVyXCJcbiAgICAgICAgICApXG4gICAgICApLFxuICAgIHdhcm1GYWN0b3JzV2l0aERFUW5hbWVzVW5pdHNDb21wYXRpYmxlICU+JVxuICAgICAgbXV0YXRlKFxuICAgICAgICBpZlNvdXJjZSA9IFwiV0FSTVwiLFxuICAgICAgICBpbXBhY3RHcm91cCA9XG4gICAgICAgICAgY2FzZV93aGVuKFxuICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJHbG9iYWwgd2FybWluZ1wiIH4gXCJHSEcnc1wiLFxuICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gXCJFbmVyZ3kgdXNlXCIgfiBcIkVuZXJneVwiXG4gICAgICAgICAgKVxuICAgICAgKVxuICApICU+JVxuICAjIGZpbHRlcmluZyBvdXQgZXh0cmEgcmVjb3JkcyBmcm9tIHRoZSBXQVJNIGZpbGUgKG1hdGVyaWFsc1xuICAjIG5vdCBjb25zaWRlcmVkIGJ5IE9yZWdvbiBERVEpXG4gIGZpbHRlcighaXMubmEobWF0ZXJpYWwpICYgIWlzLm5hKGltcGFjdEZhY3RvcikpICU+JVxuICAjIHNvcnRpbmcgZm9yIGNvbnZlbmllbmNlXG4gIGFycmFuZ2UoXG4gICAgbWF0ZXJpYWwsXG4gICAgZGlzcG9zaXRpb24sXG4gICAgaW1wYWN0R3JvdXAsXG4gICAgaWZTb3VyY2UsXG4gICAgaW1wYWN0Q2F0ZWdvcnlcbiAgKSAlPiVcbiAgIyBmaWxsaW5nIGluIExDc3RhZ2UgZmllbGQgbWlzc2luZyBmcm9tIFdBUk0gZGF0YVxuICBtdXRhdGUoXG4gICAgTENzdGFnZT1cbiAgICAgIGlmZWxzZShcbiAgICAgICAgaWZTb3VyY2U9PVwiV0FSTVwiICYgaXMubmEoTENzdGFnZSksXG4gICAgICAgIGlmZWxzZShkaXNwb3NpdGlvbj09XCJwcm9kdWN0aW9uXCIsXCJwcm9kdWN0aW9uXCIsXCJlbmRPZkxpZmVcIiksXG4gICAgICAgIExDc3RhZ2VcbiAgICAgIClcbiAgKVxuYGBgIn0= -->
+<pre class="r"><code>impactSourcesToCompare &lt;-
+  bind_rows(
+    impactFactorsDEQplusWARMnames %&gt;%
+      mutate(
+        ifSource = &quot;DEQ&quot;,
+        impactGroup =
+          case_when(
+            impactCategory == &quot;Air PM2.5&quot; ~ &quot;Air&quot;,
+            impactCategory == &quot;Energy demand&quot; ~ &quot;Energy&quot;,
+            impactCategory == &quot;Eutrophication&quot; ~ &quot;Eutrophication&quot;,
+            impactCategory == &quot;Global warming 100&quot; |
+              impactCategory == &quot;Global warming 100(B)&quot; |
+              impactCategory == &quot;Global warming 20&quot; |
+              impactCategory == &quot;Global warming 20(B)&quot; ~ &quot;GHG&#39;s&quot;,
+            impactCategory == &quot;Human toxicity&quot; ~ &quot;Toxicity&quot;,
+            impactCategory == &quot;Water consumption&quot; ~ &quot;Water&quot;
+          )
+      ),
+    warmFactorsWithDEQnamesUnitsCompatible %&gt;%
+      mutate(
+        ifSource = &quot;WARM&quot;,
+        impactGroup =
+          case_when(
+            impactCategory == &quot;Global warming&quot; ~ &quot;GHG&#39;s&quot;,
+            impactCategory == &quot;Energy use&quot; ~ &quot;Energy&quot;
+          )
+      )
+  ) %&gt;%
+  # filtering out extra records from the WARM file (materials
+  # not considered by Oregon DEQ)
+  filter(!is.na(material) &amp; !is.na(impactFactor)) %&gt;%
+  # sorting for convenience
+  arrange(
+    material,
+    disposition,
+    impactGroup,
+    ifSource,
+    impactCategory
+  ) %&gt;%
+  # filling in LCstage field missing from WARM data
+  mutate(
+    LCstage=
+      ifelse(
+        ifSource==&quot;WARM&quot; &amp; is.na(LCstage),
+        ifelse(disposition==&quot;production&quot;,&quot;production&quot;,&quot;endOfLife&quot;),
+        LCstage
+      )
+  )</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Looks like it’s done, so I can delete temp ohjects.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm0obGlzdD1zZXRkaWZmKGxzKCksXCJpbXBhY3RTb3VyY2VzVG9Db21wYXJlXCIpKVxuYGBgIn0= -->
+<pre class="r"><code>rm(list=setdiff(ls(),&quot;impactSourcesToCompare&quot;))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>I need a few more fixes. The WARM impact categories need to be labeled as such for clarity.</p>
+<p>And some spurious entries from WARM (e.g. composting aluminum) which have missing impact factors need to be removed.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW1wYWN0U291cmNlc1RvQ29tcGFyZTIgPC0gXG4gIGltcGFjdFNvdXJjZXNUb0NvbXBhcmUgJT4lXG4gIG11dGF0ZShcbiAgICBpbXBhY3RDYXRlZ29yeSA9XG4gICAgICBpZmVsc2UoXG4gICAgICAgIGlmU291cmNlPT1cIldBUk1cIixcbiAgICAgICAgcGFzdGUoaW1wYWN0Q2F0ZWdvcnksIFwiIChXQVJNKVwiLCBzZXA9XCJcIiksXG4gICAgICAgIGltcGFjdENhdGVnb3J5XG4gICAgICApXG4gICkgJT4lXG4gIGZpbHRlcighaXMubmEoaW1wYWN0RmFjdG9yKSlcbmBgYCJ9 -->
+<pre class="r"><code>impactSourcesToCompare2 &lt;- 
+  impactSourcesToCompare %&gt;%
+  mutate(
+    impactCategory =
+      ifelse(
+        ifSource==&quot;WARM&quot;,
+        paste(impactCategory, &quot; (WARM)&quot;, sep=&quot;&quot;),
+        impactCategory
+      )
+  ) %&gt;%
+  filter(!is.na(impactFactor))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="saving-the-results-for-posterity" class="section level3">
+<h3>Saving the results for posterity</h3>
+<p>Now I need to split this into two files and export them</p>
+<p>First, one to use in the impact factor comparison app – this does not use end-of-life transport impacts.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW1wYWN0RmFjdG9yQ29tcGFyaXNvbkRhdGEgPC1cbiAgaW1wYWN0U291cmNlc1RvQ29tcGFyZTIgJT4lXG4gIGZpbHRlcihMQ3N0YWdlICE9IFwiZW5kT2ZMaWZlVHJhbnNwb3J0XCIpXG53cml0ZS5jc3YoXG4gIGltcGFjdEZhY3RvckNvbXBhcmlzb25EYXRhLCBcbiAgXCIuLi9jb21tb25fZGF0YS9pbXBhY3RGYWN0b3JDb21wYXJpc29uRGF0YS5jc3ZcIixcbiAgcm93Lm5hbWVzID0gRlxuKVxuc2F2ZVJEUyhcbiAgaW1wYWN0RmFjdG9yQ29tcGFyaXNvbkRhdGEsIFxuICBcIi4uL2NvbW1vbl9kYXRhL2ltcGFjdFNvdXJjZXNUb0NvbXBhcmUuUkRhdGFcIlxuKVxubXlQaXZvdGVkVGFibGUgPC1cbiAgaW1wYWN0RmFjdG9yQ29tcGFyaXNvbkRhdGEgJT4lXG4gIGFycmFuZ2UoaW1wYWN0R3JvdXAsIGlmU291cmNlLCBpbXBhY3RDYXRlZ29yeSwgaW1wYWN0VW5pdHMpICU+JVxuICBmaWx0ZXIoIWlzLm5hKGltcGFjdEZhY3RvcikpICU+JVxuICBwaXZvdF93aWRlcihcbiAgICBuYW1lc19mcm9tID0gXG4gICAgICBjKFwiaW1wYWN0R3JvdXBcIixcImlmU291cmNlXCIsXCJpbXBhY3RDYXRlZ29yeVwiLFwiaW1wYWN0VW5pdHNcIiksXG4gICAgdmFsdWVzX2Zyb20gPSBpbXBhY3RGYWN0b3JcbiAgKVxuIyBleHBvcnRpbmcgdGhhdCBcbnNhdmVSRFMoXG4gIG15UGl2b3RlZFRhYmxlLFxuICBcIi4uL2NvbW1vbl9kYXRhL3Bpdm90ZWRfaW1wYWN0X2ZhY3Rvcl9jb21wYXJpc29uLlJEYXRhXCJcbilcbmBgYCJ9 -->
+<pre class="r"><code>impactFactorComparisonData &lt;-
+  impactSourcesToCompare2 %&gt;%
+  filter(LCstage != &quot;endOfLifeTransport&quot;)
+write.csv(
+  impactFactorComparisonData, 
+  &quot;../common_data/impactFactorComparisonData.csv&quot;,
+  row.names = F
+)
+saveRDS(
+  impactFactorComparisonData, 
+  &quot;../common_data/impactSourcesToCompare.RData&quot;
+)
+myPivotedTable &lt;-
+  impactFactorComparisonData %&gt;%
+  arrange(impactGroup, ifSource, impactCategory, impactUnits) %&gt;%
+  filter(!is.na(impactFactor)) %&gt;%
+  pivot_wider(
+    names_from = 
+      c(&quot;impactGroup&quot;,&quot;ifSource&quot;,&quot;impactCategory&quot;,&quot;impactUnits&quot;),
+    values_from = impactFactor
+  )
+# exporting that 
+saveRDS(
+  myPivotedTable,
+  &quot;../common_data/pivoted_impact_factor_comparison.RData&quot;
+)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Meanwhile, the full impact factor file, for use by the rest of WIC, does not need the WARM reference material.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW1wYWN0RmFjdG9ycyA8LVxuICBpbXBhY3RTb3VyY2VzVG9Db21wYXJlMiAlPiVcbiAgc2VsZWN0KC1pbXBhY3RHcm91cCwgLWlmU291cmNlLCAtd2FybU1hdGVyaWFsKSAlPiVcbiAgZmlsdGVyKFxuICAgIGltcGFjdENhdGVnb3J5ICE9IFwiRW5lcmd5IHVzZSAoV0FSTSlcIiAmIFxuICAgICAgaW1wYWN0Q2F0ZWdvcnkgIT0gXCJHbG9iYWwgd2FybWluZyAoV0FSTSlcIiBcbiAgICAgICMgJlxuICAgICAgIyBpbXBhY3RDYXRlZ29yeSAhPSBcIkdsb2JhbCB3YXJtaW5nIDEwMChCKVwiICZcbiAgICAgICMgaW1wYWN0Q2F0ZWdvcnkgIT0gXCJHbG9iYWwgd2FybWluZyAxMDBcIlxuICApXG53cml0ZS5jc3YoXG4gIGltcGFjdEZhY3RvcnMsXG4gIFwiLi4vY29tbW9uX2RhdGEvaW1wYWN0RmFjdG9ycy5jc3ZcIixcbiAgcm93Lm5hbWVzID0gRlxuKVxuc2F2ZVJEUyhcbiAgaW1wYWN0RmFjdG9ycyxcbiAgXCIuLi9jb21tb25fZGF0YS9pbXBhY3RGYWN0b3JzLlJEYXRhXCJcbilcbmBgYCJ9 -->
+<pre class="r"><code>impactFactors &lt;-
+  impactSourcesToCompare2 %&gt;%
+  select(-impactGroup, -ifSource, -warmMaterial) %&gt;%
+  filter(
+    impactCategory != &quot;Energy use (WARM)&quot; &amp; 
+      impactCategory != &quot;Global warming (WARM)&quot; 
+      # &amp;
+      # impactCategory != &quot;Global warming 100(B)&quot; &amp;
+      # impactCategory != &quot;Global warming 100&quot;
+  )
+write.csv(
+  impactFactors,
+  &quot;../common_data/impactFactors.csv&quot;,
+  row.names = F
+)
+saveRDS(
+  impactFactors,
+  &quot;../common_data/impactFactors.RData&quot;
+)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Ok, that’s it. Ready to move on I think!</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm0obGlzdD1scygpKVxuYGBgIn0= -->
+<pre class="r"><code>rm(list=ls())</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+</div>
+
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIkNvbXBhcmUgV0lDIGZhY3RvcnMgb3ZlciB0aW1lIGFuZCB0byBjb21wZXRpbmcgc291cmNlcyINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNClRoaXMgaXMgYSBwbGFjZWhvbGRlciBmaWxlLiAgRXZlbnR1YWxseSBJIHdvdWxkIGxpa2UgdG8gd3JpdGUgYSBtYXJrZG93biBhbmFseXNpcyBvciBhcHAgdGhhdCBjb21wYXJlcyBXSUMgaW1wYWN0IGZhY3RvcnMgb3ZlciB0aW1lIGFuZCBzaG93cyBob3cgdGhleSBtYXRjaCB1cCB0byBjb21wZXRpbmcgc291cmNlcywgc3VjaCBhcyBXQVJNLg0KDQpiZWxvdzogc29tZSByYW5kb20gb2xkIGp1bmsgYWJvdXQgaG93IHRvIGltcG9ydCBXQVJtLi4gIG5lZWRzIHRvIGJlIGZpeGVkLg0KDQoNCiMjIyBJbXBvcnRpbmcgV0FSTSBpbXBhY3QgZmFjdG9ycyANCg0KSSBkb3dubG9hZGVkIFdBUk0gaW1wYWN0IGZhY3RvcnMgZnJvbSBbaGVyZV0oaHR0cHM6Ly93d3cuZXBhLmdvdi9zaXRlcy9wcm9kdWN0aW9uL2ZpbGVzLzIwMTktMDYvd2FybV92MTUueGxzKSBpbnRvIGEgbG9jYWwgZGlyZWN0b3J5Lg0KDQpOb3cgbGV0J3MgbWFrZSBpdCBhbiBSIGRhdGEgZnJhbWUuDQoNCmBgYHtyfQ0Kd2FybUdIR2ltcG9ydGVkIDwtDQogIHJlYWRfeGxzKA0KICAgIHBhdGggPSAiaW1wYWN0X2ZhY3RvcnMvd2FybV92MTUueGxzIiwgDQogICAgc2hlZXQgPSAiQW5hbHlzaXMgUmVzdWx0cyAoTVRDTzJFKSIsIA0KICAgIHJhbmdlID0gImUxMjprNzEiLCANCiAgICBjb2xfbmFtZXMgPSBjKA0KICAgICAgIndhcm1NYXRlcmlhbCIsDQogICAgICAicHJvZHVjdGlvbiIsDQogICAgICAicmVjeWNsaW5nIiwNCiAgICAgICJsYW5kZmlsbGluZyIsDQogICAgICAiY29tYnVzdGlvbiIsDQogICAgICAiY29tcG9zdGluZyIsDQogICAgICAiYW5hZXJvYmljRGlnZXN0aW9uIg0KICAgICksDQogICAgY29sX3R5cGVzID0gYygidGV4dCIsIHJlcCgibnVtZXJpYyIsNikpDQogICkNCg0Kd2FybUVuZXJneUltcG9ydGVkIDwtDQogIHJlYWRfeGxzKA0KICAgIHBhdGggPSAiaW1wYWN0X2ZhY3RvcnMvd2FybV92MTUueGxzIiwgDQogICAgc2hlZXQgPSAiQW5hbHlzaXMgUmVzdWx0cyAoZW5lcmd5KSIsIA0KICAgIHJhbmdlID0gImUxMjprNzEiLCANCiAgICBjb2xfbmFtZXMgPSBjKA0KICAgICAgIndhcm1NYXRlcmlhbCIsDQogICAgICAicHJvZHVjdGlvbiIsDQogICAgICAicmVjeWNsaW5nIiwNCiAgICAgICJsYW5kZmlsbGluZyIsDQogICAgICAiY29tYnVzdGlvbiIsDQogICAgICAiY29tcG9zdGluZyIsDQogICAgICAiYW5hZXJvYmljRGlnZXN0aW9uIg0KICAgICksDQogICAgY29sX3R5cGVzID0gYygidGV4dCIsIHJlcCgibnVtZXJpYyIsNikpDQogICkNCiAgDQpgYGANCg0KTm93IG1ha2UgdGhpcyBpbnRvIGEgdGlkeSBkYXRhIGZyYW1lLi4uDQpUaGF0IG1lYW5zIGVhY2ggZGF0dW0gaXMgaWRlbnRpZmllZCBieSBjbGFzc2lmaWNhdGlvbiB2YXJpYWJsZXMgaW4gZWFjaCByb3cuLi4gdGhlICJsb25nIHNraW5ueSIgZm9ybWF0LiBTbyBJIG5lZWQgZWFjaCBpbXBhY3RGYWN0b3IgdG8gYmUgaWRlbnRpZmllZCBieS4uDQoNCmltcGFjdENhdGVnb3J5DQppbXBhY3RVbml0cw0Kd2FybU1hdGVyaWFsDQpkaXNwb3NpdGlvbg0KDQpgYGB7cn0NCiMgZmxpcHBpbmcgdGhlIEdIRyBmaWxlIHRvIG1ha2UgaXQgc2tpbm5pZXINCndhcm1HSEdmbGlwcGVkIDwtDQogIHdhcm1HSEdpbXBvcnRlZCAlPiUNCiAgcGl2b3RfbG9uZ2VyKA0KICAgIGNvbHMgPSBwcm9kdWN0aW9uOmFuYWVyb2JpY0RpZ2VzdGlvbiwNCiAgICBuYW1lc190byA9ICJkaXNwb3NpdGlvbiIsDQogICAgdmFsdWVzX3RvID0gImltcGFjdEZhY3RvciINCiAgKSAlPiUNCiAgIyBhZGRpbmcgbW9yZSBpZGVudGlmeWluZyB2YXJpYWJsZXMNCiAgbXV0YXRlKA0KICAgIGltcGFjdENhdGVnb3J5ID0gIkdsb2JhbCB3YXJtaW5nIiwNCiAgICBpbXBhY3RVbml0cyA9ICJNVENPMkUiDQogICkNCiMgZmxpcHBpbmcgdGhlIGVuZXJneSBmaWxlIHRvIG1ha2UgaXQgc2tpbm5pZXINCndhcm1FbmVyZ3lGbGlwcGVkIDwtDQogIHdhcm1FbmVyZ3lJbXBvcnRlZCAlPiUNCiAgcGl2b3RfbG9uZ2VyKA0KICAgIGNvbHMgPSBwcm9kdWN0aW9uOmFuYWVyb2JpY0RpZ2VzdGlvbiwNCiAgICBuYW1lc190byA9ICJkaXNwb3NpdGlvbiIsDQogICAgdmFsdWVzX3RvID0gImltcGFjdEZhY3RvciINCiAgKSAlPiUNCiAgIyBhZGRpbmcgbW9yZSBpZGVudGlmeWluZyB2YXJpYWJsZXMNCiAgbXV0YXRlKA0KICAgIGltcGFjdENhdGVnb3J5ID0gIkVuZXJneSB1c2UiLA0KICAgIGltcGFjdFVuaXRzID0gIm1pbGxpb24gQlRVIg0KICApDQojIG1lcmdpbmcgdGhvc2UgdHdvIGZpbGVzDQp3YXJtRmFjdG9ycyA8LQ0KICBiaW5kX3Jvd3Mod2FybUVuZXJneUZsaXBwZWQsIHdhcm1HSEdmbGlwcGVkKQ0KYGBgDQoNCm9rLCB0aGUgV0FSTSBmYWN0b3JzIGFyZSBpbiB0aGUgb2JqZWN0IHdhcm1GYWN0b3JzLiAgSSBjYW4gZ2V0IHJpZCBvZiB0ZW1wb3Jhcnkgb2JqZWN0cy4NCg0KYGBge3J9DQpybShsaXN0PXNldGRpZmYobHMoKSxjKCJ3YXJtRmFjdG9ycyIsICJpbXBhY3RfZmFjdG9yc19kZXEiKSkpDQpgYGANCg0KIyMjIE1lcmdlIERFUSBhbmQgV0FSTSBmYWN0b3JzDQoNCk5vdyBJIG5lZWQgdG8gZG8gc29tZXRoaW5nIHRoYXQncyBub3QgZXhhY3RseSBhICJyZXByb2R1Y2libGUiIHRhc2suICBJIG5lZWQgdG8gY3JlYXRlIGEgdGFibGUgdGhhdCBtYXRjaGVzIHRoZSBtYXRlcmlhbCAoYW5kIGRpc3Bvc2l0aW9uPykgbmFtZXMgaW4gdGhlIERFUSBhbmQgV0FSTSBkYXRhIHNldHMuDQoNCk9uY2UgSSBoYXZlIHRoaXMgdGFibGUsIEkgd29uJ3QgbmVlZCB0byByZXJ1biB0aGUgY29kZSAoYW5kIG1hbnVhbCBlZGl0cykgdGhhdCBjcmVhdGVkIGl0Lg0KDQpMZXQncyBleHBsb3JlIHRoZSB0d28gc2V0cyBhIGJpdC4NCkFyZSB0aGVpciBkaXNwb3NpdGlvbiBuYW1lcyB0aGUgc2FtZT8NCg0KYGBge3J9DQpwcmludCh1bmlxdWUoaW1wYWN0X2ZhY3RvcnNfZGVxJGRpc3Bvc2l0aW9uKSkNCnByaW50KHVuaXF1ZSh3YXJtRmFjdG9ycyRkaXNwb3NpdGlvbikpDQpgYGANCg0KdGhlaXIgZGlzcG9zaXRpb24gbmFtZXMgbG9vayBjb21wYXRpYmxlLiAgU28gSSBkb24ndCBuZWVkIHRvIGZpeCB0aG9zZS4gIFdoZXchDQoNCmxldCdzIGV4cGxvcmUgdGhlIG1hdGVyaWFsIG5hbWVzLi4uIA0KDQouLi4gZGlkIHRoYXQuICANCg0KSSBoYXZlIGNvbnN0cnVjdGVkIGEgZmlsZSB0aGF0IG1hdGNoZXMgREVRIG1hdGVyaWFsIG5hbWVzIHRvIFdBUk0gbWF0ZXJpYWwgbmFtZXMuICBUaGlzIG1heSBuZWVkIHRvIGJlIGFsdGVyZWQgYXMgREVRJ3Mgb3duIGRhdGFiYXNlIGV4cGFuZHMuICBJJ2xsIGltcG9ydCBpdCBoZXJlLg0KDQpgYGB7cn0NCmRlcVdBUk14d2FsayA8LSANCiAgcmVhZF9leGNlbCgNCiAgICAiaW1wYWN0X2ZhY3RvcnMvd2FybV9vcmVnb25fZGVxX3h3YWxrLnhsc3giLA0KICAgIHJhbmdlPSJhNTpiMjciDQogICkNCmBgYA0KDQpOb3cgbGV0J3MgYXBwbHkgdGhhdCBjcm9zc3dhbGsgdG8gdGhlIHdhcm1GYWN0b3JzLCBzbyB0aGF0IHRoZSB3YXJtRmFjdG9ycyBoYXZlIGRlcSBtYXRlcmlhbCBuYW1lcy4NCg0KYGBge3J9DQp3YXJtRmFjdG9yc1dpdGhERVFuYW1lcyA8LQ0KICBsZWZ0X2pvaW4oDQogICAgd2FybUZhY3RvcnMsDQogICAgZGVxV0FSTXh3YWxrLA0KICAgIGJ5ID0gIndhcm1NYXRlcmlhbCINCiAgKQ0KYGBgDQoNCk5vdyBJIG5lZWQgdG8gQXNzdXJlIHRoYXQgdGhlIHVuaXRzIGFyZSBjb21wYXRpYmxlDQoNCkxldCdzIHByaW50IG91dCB0aGUgY2F0ZWdvcmllcyBhbmQgdW5pdHMgaW4gdGhlIERFUSBmaWxlLCBhbmQgdGhlbiB0aGUgV0FSTSBmaWxlLg0KDQpgYGB7cn0NCmRpc3RpbmN0KGltcGFjdF9mYWN0b3JzX2RlcSwgaW1wYWN0Q2F0ZWdvcnksIGltcGFjdFVuaXRzKQ0KZGlzdGluY3Qod2FybUZhY3RvcnNXaXRoREVRbmFtZXMsIGltcGFjdENhdGVnb3J5LCBpbXBhY3RVbml0cykNCmBgYA0KDQpEaWZmZXJlbmNlczoNCg0KKiB0aGUgREVRIGZpbGUgZG9lcyBHSEcgaW1wYWN0cyBhcyBrZyBDTzIgRXEuIHBlciBzaG9ydCB0b24gb2YgbWF0ZXJpYWwuDQoqIHRoZSBXQVJNIGZpbGUgZG9lcyBHSEcgaW1wYWN0cyBhcyBtZXRyaWMgdG9ucyBDTzIgcGVyIHNob3J0IHRvbiBvZiBtYXRlcmlhbA0KKiB0aGUgREVRIGZpbGUgZG9lcyBlbmVyZ3kgYXMgTUoNCiogdGhlIFdBUk0gZmlsZSBkb2VzIEdIRyBpbXBhY3RzIGFzIG1pbGxpb24gQlRVDQoNClNvOiBJJ3ZlIGdvdCB0bw0KDQoqIG11bHRpcGx5IFdBUk0ncyBHSEcgbnVtYmVycyBieSAxMDAwIChiZWNhdXNlIHRoZXJlIGFyZSAxMDAwIGtnIGluIGEgbWV0cmljIHRvbikNCiogbXVsdGlwbHkgV0FSTSdzIGVuZXJneSBudW1iZXJzIGJ5IDEwNTUgKGJlY2F1c2UgdGhlcmUgYXJlICAxLDA1NS4wNTU4NTMgTUogIGluIDEgbWlsbGlvbiBCVFUpLg0KDQpIZXJlIEknbGwgbWFrZSB0aG9zZSBjb3JyZWN0aW9ucywgYW5kIGFsc28gZmxpcCB0aGUgc2lnbiBvbiBXQVJNJ3MgInByb2R1Y3Rpb24iIGltcGFjdHMuLi4gYmVjYXVzZSB0aGV5IGNvdW50IHRoZW0gYXMgInNhdmluZ3MiICgoPz8/ISkpDQoNCmBgYHtyfQ0Kd2FybUZhY3RvcnNXaXRoREVRbmFtZXNVbml0c0NvbXBhdGlibGUgPC0NCiAgd2FybUZhY3RvcnNXaXRoREVRbmFtZXMgJT4lDQogIG11dGF0ZSgNCiAgICBpbXBhY3RGYWN0b3IgPQ0KICAgICAgY2FzZV93aGVuKA0KICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiRW5lcmd5IHVzZSIgfiBpbXBhY3RGYWN0b3IqMTA1NS4wNTU4LA0KICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiR2xvYmFsIHdhcm1pbmciIH4gaW1wYWN0RmFjdG9yKjEwMDANCiAgICAgICksDQogICAgaW1wYWN0VW5pdHMgPQ0KICAgICAgY2FzZV93aGVuKA0KICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiRW5lcmd5IHVzZSIgfiAiTUoiLA0KICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiR2xvYmFsIHdhcm1pbmciIH4gImtnIENPMiBlcS4iDQogICAgICApDQogICkgJT4lDQogIG11dGF0ZSgNCiAgICBpbXBhY3RGYWN0b3IgPQ0KICAgICAgaWZlbHNlKGRpc3Bvc2l0aW9uPT0icHJvZHVjdGlvbiIsIC1pbXBhY3RGYWN0b3IsIGltcGFjdEZhY3RvcikNCiAgKQ0KYGBgDQoNCkkgYWxzbyBuZWVkIHRvIGFkZCBXQVJNIG5hbWVzIHRvIHRoZSBleGlzdGluZyBERVEgaW1wYWN0IGZhY3RvcnMuDQoNCmBgYHtyfQ0KaW1wYWN0RmFjdG9yc0RFUXBsdXNXQVJNbmFtZXMgPC0NCiAgbGVmdF9qb2luKA0KICAgIGltcGFjdF9mYWN0b3JzX2RlcSwNCiAgICBkZXFXQVJNeHdhbGssDQogICAgYnk9Im1hdGVyaWFsIg0KICApDQpgYGANCg0KDQojIyMgQ29tYmluZSB0aGUgc291cmNlcw0KDQpXaGlsZSBJIGNvbWJpbmUgdGhlIERFUSBhbmQgV0FSTSBmaWxlcywgSSdtIGdvaW5nIHRvIGxhYmVsIHRoZSByZWNvcmRzIHdpdGggYSBzb3VyY2UgKERFUSBvciBXQVJNKSBhbmQgYWxzbyBncm91cCB0aGUgaW1wYWN0IGNhdGVnb3JpZXMuDQoNCmBgYHtyfQ0KaW1wYWN0U291cmNlc1RvQ29tcGFyZSA8LQ0KICBiaW5kX3Jvd3MoDQogICAgaW1wYWN0RmFjdG9yc0RFUXBsdXNXQVJNbmFtZXMgJT4lDQogICAgICBtdXRhdGUoDQogICAgICAgIGlmU291cmNlID0gIkRFUSIsDQogICAgICAgIGltcGFjdEdyb3VwID0NCiAgICAgICAgICBjYXNlX3doZW4oDQogICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiQWlyIFBNMi41IiB+ICJBaXIiLA0KICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gIkVuZXJneSBkZW1hbmQiIH4gIkVuZXJneSIsDQogICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiRXV0cm9waGljYXRpb24iIH4gIkV1dHJvcGhpY2F0aW9uIiwNCiAgICAgICAgICAgIGltcGFjdENhdGVnb3J5ID09ICJHbG9iYWwgd2FybWluZyAxMDAiIHwNCiAgICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gIkdsb2JhbCB3YXJtaW5nIDEwMChCKSIgfA0KICAgICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiR2xvYmFsIHdhcm1pbmcgMjAiIHwNCiAgICAgICAgICAgICAgaW1wYWN0Q2F0ZWdvcnkgPT0gIkdsb2JhbCB3YXJtaW5nIDIwKEIpIiB+ICJHSEcncyIsDQogICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiSHVtYW4gdG94aWNpdHkiIH4gIlRveGljaXR5IiwNCiAgICAgICAgICAgIGltcGFjdENhdGVnb3J5ID09ICJXYXRlciBjb25zdW1wdGlvbiIgfiAiV2F0ZXIiDQogICAgICAgICAgKQ0KICAgICAgKSwNCiAgICB3YXJtRmFjdG9yc1dpdGhERVFuYW1lc1VuaXRzQ29tcGF0aWJsZSAlPiUNCiAgICAgIG11dGF0ZSgNCiAgICAgICAgaWZTb3VyY2UgPSAiV0FSTSIsDQogICAgICAgIGltcGFjdEdyb3VwID0NCiAgICAgICAgICBjYXNlX3doZW4oDQogICAgICAgICAgICBpbXBhY3RDYXRlZ29yeSA9PSAiR2xvYmFsIHdhcm1pbmciIH4gIkdIRydzIiwNCiAgICAgICAgICAgIGltcGFjdENhdGVnb3J5ID09ICJFbmVyZ3kgdXNlIiB+ICJFbmVyZ3kiDQogICAgICAgICAgKQ0KICAgICAgKQ0KICApICU+JQ0KICAjIGZpbHRlcmluZyBvdXQgZXh0cmEgcmVjb3JkcyBmcm9tIHRoZSBXQVJNIGZpbGUgKG1hdGVyaWFscw0KICAjIG5vdCBjb25zaWRlcmVkIGJ5IE9yZWdvbiBERVEpDQogIGZpbHRlcighaXMubmEobWF0ZXJpYWwpICYgIWlzLm5hKGltcGFjdEZhY3RvcikpICU+JQ0KICAjIHNvcnRpbmcgZm9yIGNvbnZlbmllbmNlDQogIGFycmFuZ2UoDQogICAgbWF0ZXJpYWwsDQogICAgZGlzcG9zaXRpb24sDQogICAgaW1wYWN0R3JvdXAsDQogICAgaWZTb3VyY2UsDQogICAgaW1wYWN0Q2F0ZWdvcnkNCiAgKSAlPiUNCiAgIyBmaWxsaW5nIGluIExDc3RhZ2UgZmllbGQgbWlzc2luZyBmcm9tIFdBUk0gZGF0YQ0KICBtdXRhdGUoDQogICAgTENzdGFnZT0NCiAgICAgIGlmZWxzZSgNCiAgICAgICAgaWZTb3VyY2U9PSJXQVJNIiAmIGlzLm5hKExDc3RhZ2UpLA0KICAgICAgICBpZmVsc2UoZGlzcG9zaXRpb249PSJwcm9kdWN0aW9uIiwicHJvZHVjdGlvbiIsImVuZE9mTGlmZSIpLA0KICAgICAgICBMQ3N0YWdlDQogICAgICApDQogICkNCmBgYA0KDQpMb29rcyBsaWtlIGl0J3MgZG9uZSwgc28gSSBjYW4gZGVsZXRlIHRlbXAgb2hqZWN0cy4NCg0KYGBge3J9DQpybShsaXN0PXNldGRpZmYobHMoKSwiaW1wYWN0U291cmNlc1RvQ29tcGFyZSIpKQ0KYGBgDQoNCkkgbmVlZCBhIGZldyBtb3JlIGZpeGVzLiAgVGhlIFdBUk0gaW1wYWN0IGNhdGVnb3JpZXMgbmVlZCB0byBiZSBsYWJlbGVkIGFzIHN1Y2ggZm9yIGNsYXJpdHkuDQoNCkFuZCBzb21lIHNwdXJpb3VzIGVudHJpZXMgZnJvbSBXQVJNIChlLmcuIGNvbXBvc3RpbmcgYWx1bWludW0pIHdoaWNoIGhhdmUgbWlzc2luZyBpbXBhY3QgZmFjdG9ycyBuZWVkIHRvIGJlIHJlbW92ZWQuDQogDQpgYGB7cn0NCmltcGFjdFNvdXJjZXNUb0NvbXBhcmUyIDwtIA0KICBpbXBhY3RTb3VyY2VzVG9Db21wYXJlICU+JQ0KICBtdXRhdGUoDQogICAgaW1wYWN0Q2F0ZWdvcnkgPQ0KICAgICAgaWZlbHNlKA0KICAgICAgICBpZlNvdXJjZT09IldBUk0iLA0KICAgICAgICBwYXN0ZShpbXBhY3RDYXRlZ29yeSwgIiAoV0FSTSkiLCBzZXA9IiIpLA0KICAgICAgICBpbXBhY3RDYXRlZ29yeQ0KICAgICAgKQ0KICApICU+JQ0KICBmaWx0ZXIoIWlzLm5hKGltcGFjdEZhY3RvcikpDQpgYGANCg0KIyMjIFNhdmluZyB0aGUgcmVzdWx0cyBmb3IgcG9zdGVyaXR5DQoNCk5vdyBJIG5lZWQgdG8gc3BsaXQgdGhpcyBpbnRvIHR3byBmaWxlcyBhbmQgZXhwb3J0IHRoZW0NCg0KRmlyc3QsIG9uZSB0byB1c2UgaW4gdGhlIGltcGFjdCBmYWN0b3IgY29tcGFyaXNvbiBhcHAgLS0gdGhpcyBkb2VzIG5vdCB1c2UgZW5kLW9mLWxpZmUgdHJhbnNwb3J0IGltcGFjdHMuDQoNCmBgYHtyfQ0KaW1wYWN0RmFjdG9yQ29tcGFyaXNvbkRhdGEgPC0NCiAgaW1wYWN0U291cmNlc1RvQ29tcGFyZTIgJT4lDQogIGZpbHRlcihMQ3N0YWdlICE9ICJlbmRPZkxpZmVUcmFuc3BvcnQiKQ0Kd3JpdGUuY3N2KA0KICBpbXBhY3RGYWN0b3JDb21wYXJpc29uRGF0YSwgDQogICIuLi9jb21tb25fZGF0YS9pbXBhY3RGYWN0b3JDb21wYXJpc29uRGF0YS5jc3YiLA0KICByb3cubmFtZXMgPSBGDQopDQpzYXZlUkRTKA0KICBpbXBhY3RGYWN0b3JDb21wYXJpc29uRGF0YSwgDQogICIuLi9jb21tb25fZGF0YS9pbXBhY3RTb3VyY2VzVG9Db21wYXJlLlJEYXRhIg0KKQ0KbXlQaXZvdGVkVGFibGUgPC0NCiAgaW1wYWN0RmFjdG9yQ29tcGFyaXNvbkRhdGEgJT4lDQogIGFycmFuZ2UoaW1wYWN0R3JvdXAsIGlmU291cmNlLCBpbXBhY3RDYXRlZ29yeSwgaW1wYWN0VW5pdHMpICU+JQ0KICBmaWx0ZXIoIWlzLm5hKGltcGFjdEZhY3RvcikpICU+JQ0KICBwaXZvdF93aWRlcigNCiAgICBuYW1lc19mcm9tID0gDQogICAgICBjKCJpbXBhY3RHcm91cCIsImlmU291cmNlIiwiaW1wYWN0Q2F0ZWdvcnkiLCJpbXBhY3RVbml0cyIpLA0KICAgIHZhbHVlc19mcm9tID0gaW1wYWN0RmFjdG9yDQogICkNCiMgZXhwb3J0aW5nIHRoYXQgDQpzYXZlUkRTKA0KICBteVBpdm90ZWRUYWJsZSwNCiAgIi4uL2NvbW1vbl9kYXRhL3Bpdm90ZWRfaW1wYWN0X2ZhY3Rvcl9jb21wYXJpc29uLlJEYXRhIg0KKQ0KYGBgDQoNCg0KTWVhbndoaWxlLCB0aGUgZnVsbCBpbXBhY3QgZmFjdG9yIGZpbGUsIGZvciB1c2UgYnkgdGhlIHJlc3Qgb2YgV0lDLCBkb2VzIG5vdCBuZWVkIHRoZSBXQVJNIHJlZmVyZW5jZSBtYXRlcmlhbC4NCg0KYGBge3J9DQppbXBhY3RGYWN0b3JzIDwtDQogIGltcGFjdFNvdXJjZXNUb0NvbXBhcmUyICU+JQ0KICBzZWxlY3QoLWltcGFjdEdyb3VwLCAtaWZTb3VyY2UsIC13YXJtTWF0ZXJpYWwpICU+JQ0KICBmaWx0ZXIoDQogICAgaW1wYWN0Q2F0ZWdvcnkgIT0gIkVuZXJneSB1c2UgKFdBUk0pIiAmIA0KICAgICAgaW1wYWN0Q2F0ZWdvcnkgIT0gIkdsb2JhbCB3YXJtaW5nIChXQVJNKSIgDQogICAgICAjICYNCiAgICAgICMgaW1wYWN0Q2F0ZWdvcnkgIT0gIkdsb2JhbCB3YXJtaW5nIDEwMChCKSIgJg0KICAgICAgIyBpbXBhY3RDYXRlZ29yeSAhPSAiR2xvYmFsIHdhcm1pbmcgMTAwIg0KICApDQp3cml0ZS5jc3YoDQogIGltcGFjdEZhY3RvcnMsDQogICIuLi9jb21tb25fZGF0YS9pbXBhY3RGYWN0b3JzLmNzdiIsDQogIHJvdy5uYW1lcyA9IEYNCikNCnNhdmVSRFMoDQogIGltcGFjdEZhY3RvcnMsDQogICIuLi9jb21tb25fZGF0YS9pbXBhY3RGYWN0b3JzLlJEYXRhIg0KKQ0KYGBgDQoNCk9rLCB0aGF0J3MgaXQuICBSZWFkeSB0byBtb3ZlIG9uIEkgdGhpbmshDQoNCmBgYHtyfQ0Kcm0obGlzdD1scygpKQ0KYGBg</div>
 
 
 
