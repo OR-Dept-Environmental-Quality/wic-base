@@ -7,24 +7,29 @@ by Martin Brown, Martin.Brown@state.or.us
 
 ### Overview
 
-In this R Markdown file, I'm going to import, slightly modify, and then save the impact factors for the WIC model.  
+Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the current file tree.
 
-Inputs (all within the "source" directory of the current file tree)
+However, those finished impact factors are slightly altered from their source expression in GABI life cycle assessment system.  The GABI-based factors are documented in *Impact modeling for the Waste Impact Calculator*.
+
+This R markdown document imports impact factors as expressed in GABI, modifies and filters them, and then saves the results in the "distributable" folder for use in WIC.
+
+Inputs (stored within the "source" directory of the current file tree)
 
 * CSV files with impact factor data
 * "gabiExportDate.txt"
 * "impactCategoryPickerFixer.xlsx"
 
-Outputs (all within the "distributable" directory of the current file tree)
+Outputs (saved within the "distributable" directory of the current file tree)
 
 * "impactFactors.csv"
 * "impactFactors.RData"
 
+
 ### Introduction
 
-WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files.  These are stored in the "source" folder within the current folder tree.  Due to their size, the contents of the "source" folder may not be included in git version control.
+WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files.  These are stored in the "source" folder within the current folder tree. (Note: these files are too large for version control, so this folder may need to be populated via zip files available in the [wic-base release](https://github.com/OR-Dept-Environmental-Quality/wic-base/releases).)
 
-Once imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables can be found in the "distributable" folder within the current folder tree.
+Once imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved the "distributable" folder within the current folder tree.
 
 There are some complications along the way.  The most notable is the fact that there are actually 2 different files I need to import...
 
