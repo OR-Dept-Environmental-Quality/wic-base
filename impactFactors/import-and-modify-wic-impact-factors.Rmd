@@ -5,33 +5,36 @@ output: html_notebook
 
 by Martin Brown, Martin.Brown@state.or.us
 
-### Overview
+### Context and Introduction
 
 Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the current file tree.
 
-However, those finished impact factors are slightly altered from their source expression in GABI life cycle assessment system.  The GABI-based factors are documented in *Impact modeling for the Waste Impact Calculator*.
+However, those finished impact factors have to come from somewhere.  Their source is modeling within the GABI life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GABI are not immediately usable in WIC.  They need to be imported, filtered, and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, and the (slightly) transformed factors saved for use elsewhere in WIC.
 
-This R markdown document imports impact factors as expressed in GABI, modifies and filters them, and then saves the results in the "distributable" folder for use in WIC.
+This R markdown document performs and explains that process. 
+
+### Inputs and outputs
 
 Inputs (stored within the "source" directory of the current file tree)
 
-* CSV files with impact factor data
-* "gabiExportDate.txt"
-* "impactCategoryPickerFixer.xlsx"
+* several *.csv files with impact factor data
+* gabiExportDate.txt
+* impactCategoryPickerFixer.xlsx
 
 Outputs (saved within the "distributable" directory of the current file tree)
 
-* "impactFactors.csv"
-* "impactFactors.RData"
+* impactFactors.csv
+* impactFactors.RData
 
+### Rationale for and outline of data processing
 
-### Introduction
+WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~80MB).  These should be found in the "source" folder of the current folder tree.
 
-WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files.  These are stored in the "source" folder within the current folder tree. (Note: these files are too large for version control, so this folder may need to be populated via zip files available in the [wic-base release](https://github.com/OR-Dept-Environmental-Quality/wic-base/releases).)
+(Note: If the "source" folder is missing or empty, it may be because the Gabi export files are too large for github version control.  You may need to populate the "source" folder from zip files found elsewhere in the [wic-base release](https://github.com/OR-Dept-Environmental-Quality/wic-base/releases).)
 
-Once imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved the "distributable" folder within the current folder tree.
+Once the Gabi CSV files are imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved the "distributable" folder within the current folder tree.
 
-There are some complications along the way.  The most notable is the fact that there are actually 2 different files I need to import...
+There are some complications along the way.  The most notable is the fact that there are actually 2 different files we need to import...
 
 * impact factors where greenhouse gas emissions calculations involving biogenic carbon include WIC's "slash" correction; and 
 * impact factors where greenhouse gas emissions involving biogenic carbon include WIC's "EPA FCS" correction. 
@@ -46,25 +49,25 @@ The following rough steps apply.
 * Filter and relabel impact categories
 * Apply the Slash and EpaFCS labels to biogenic carbon fields.
 * Save an 'unmodified' version of the file(s) for quality checking vs. Gabi model.
-* Apply modifications called for in the Technical Overview.
+* Apply modifications called for in the *Technical Overview*.
 * Save in suitable formats for future use.
 
 ### Setting up
 ```{r}
-# checking current working directory
+# check current working directory
 getwd()
 
-# setting up workspace
+# load helpful R packages
 library(tidyverse)
 library(openxlsx)
 
-# naming Gabi "pivot table export" files
+# name Gabi "pivot table export" filespecs
 csSlashFileSpec  <-
   "source/current/wicFactorsFromGabiIncludingSlashMethod.csv"
 csEpaFcsFileSpec <-
   "source/current/wicFactorsFromGabiIncludingEpaFcsMethod.csv"
 
-# naming the filespecs for two other files necessary for 
+# name the filespecs for two other files necessary for 
 # the import
 gabiExportDateFileSpec <-
   "source/current/gabiExportDate.txt"
@@ -79,7 +82,7 @@ randomFewNo <- 10
 
 Importing raw CSV's, labeling and concatenating them by fileSource, and printing out a few randomly chosen sample lines. 
 ```{r}
-# importing
+# import the raw CSV's
 csSlashRaw <- 
   data.table::fread(
     file=csSlashFileSpec,
@@ -100,11 +103,11 @@ csEpaFcsRaw <-
   ) %>%
   mutate(fileSource="EpaFcs")
 
-# merging (sources are now separable by fileSource)
+# merge the CSV's (sources are now separable by fileSource)
 csRaw <-
   bind_rows(csSlashRaw, csEpaFcsRaw)
 
-# importing the datestamp
+# import the datestamp
 dateStamps <- 
   read.csv(gabiExportDateFileSpec) %>%
   mutate(
@@ -112,10 +115,10 @@ dateStamps <-
     wicImportDate=lubridate::today()
   )
 
-# eliminating unnecessary objects
+# eliminate unnecessary objects
 rm(csEpaFcsRaw, csSlashRaw)
 
-# printing out a few random records from the 
+# print out a few random records from the 
 # imported records
 csRaw %>% sample_n(randomFewNo) %>% print()
 
