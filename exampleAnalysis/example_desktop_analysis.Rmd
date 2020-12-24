@@ -1,0 +1,887 @@
+---
+title: "Simple WIC analysis using R Markdown"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+by Martin Brown, [Martin.Brown@state.or.us]()
+
+### Introduction
+
+This RMarkdown document provides an example of using the Waste Impact Calculator (WIC) framework to estimate the life cycle environmental impacts associated with solid waste streams, and to compare the estimated environmental impacts associated with various waste management scenarios.  
+
+Along the way, this document provides pointers on how to properly combine, filter, and summarize WIC's data tables, so that the final results actually represent the scenarios you are interested in evaluating.  Before programming your own analyses, you should have a clear understanding of:
+
+* how WIC calculates impacts for individual life cycle stages; and
+* how file structures and joining commands (for example *left_join* and *full_join* in R's dplyr package) can create sets of impacts that represent the materials life cycle.
+
+### Intended audience
+
+This document is oriented towards more technical users -- those familiar with statistical or database operations.  This document assumes a beginner-to-intermediate familiarity with the R language, especially the packages "base," "dplyr", and "ggplot2". However, once WIC's principles are understood, the WIC framework does not specifically require R.
+
+Less technical users may want to spend some time with the [interactive web app version of WIC](), which does not require programming.  This app may be useful for more technical users as well, as it illustrates a variety of the types of output the WIC framework can create.
+
+### Prerequisites
+
+["Technical overview of the Waste Impact Calculator"]() describes the the purpose, limitations, and basic operation of WIC.  It also documents the meaning of all the fields in each of WIC's data tables -- information that will, for the most part, not be repeated here.
+
+### Outline
+
+This document compares the life cycle environmental impacts associated with 3 management scenarios for fictional municipal wastestreams.  The management scenarios are:
+
+* "baseline"  (representing an "actual" recent mix of recycling and disposal);
+* "eliminate_food_waste" (food waste is assumed to be zero); and
+* "recover_nearly_all" (maximize recycling and composting) 
+
+The analysis will proceed in this order:
+
+* preparing the R workspace
+* loading in the two source data tables, massProfiles and impactFactors
+* calculating impacts and creating the master results data table, impactsInDetail
+* checking for  internal consistency of impactsInDetail
+* creating assorted tabular and graphic results based on impactsInDetail
+
+### Preparing the R workspace
+
+```{r}
+# loading packages useful for the analysis
+library(tidyverse)  # many useful functions for data management
+library(ggthemes)   # some themes for plotting
+library(scales)     # useful functions for labeling charts
+library(knitr)      # helps generate formatted output of various kinds
+library(rmarkdown)  # converts RMarkdown documents to other formats
+library(viridis)    # nice & accessible color schemes
+library(svglite)    # helps write charts to SVG files
+```
+
+### Loading *massProfiles* and *impactFactors*
+
+As you recall from ["Technical overview of the Waste Impact Calculator"](), the massProfiles table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
+
+Here we load the massProfiles table into an R data frame, and print it out in a formatted table.
+
+```{r}
+# loading the mass profile data into an R data frame
+massProfiles <-
+  read.csv(
+    file = "source_data/mass_profiles.csv", 
+    header = TRUE, 
+    stringsAsFactors = FALSE  
+  )
+# a formatted printout
+kable(
+  massProfiles, 
+  caption="a simple massProfiles table for 3 scenarios and 2 materials"
+)
+```
+
+Here we list the fields in massProfiles:
+
+```{r}
+str(massProfiles)
+```
+As you recall, *tons* is the critical variable.  This is a mass of some waste material, in short tons. All the other variables serve to identify or qualify where the *tons* came from, what kind of management they represent, what life cycle stage they represent, etc.
+
+If desired, we can summarise weight-based waste statistics for each scenario from massProfiles.  For example, tere is the number of tons of waste for each umbDisp within each scenario:
+```{r}
+massProfiles %>%
+  group_by(scenario, umbDisp) %>%
+  summarize(tons=sum(tons)) %>%
+  kable()
+```
+
+You could do a different analysis to generate a list of the materials present in the waste stream (across all scenarios).
+```{r}
+materialsObserved <-
+  massProfiles %>%
+  group_by(material) %>%
+  summarise(summedTons = sum(tons, na.rm=TRUE)) %>%
+  ungroup()
+print(materialsObserved)
+rm(materialsObserved)
+```
+
+As you recall, the tons, dispositions, and miles listed in massProfiles are the data that distinguish solid waste management scenarios.  Here is an example of how massProfile information expresses the difference between solid waste management scenarios, "baseline" and "eliminate_food_waste":
+
+```{r}
+massProfiles %>%
+  filter(
+    scenario=="baseline" | scenario=="eliminate_food_waste",
+    material=="Electronics" | material=="FoodWaste",
+    wasteshed=="City A"
+    ) %>%
+  kable()
+```
+
+Note how the weights and dispositions for electronics are the same between scenarios, but in the "eliminate_food_waste" scenario food waste has been reduced to zero tons.
+
+WIC's other source data table is impactFactors.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
+
+Here we load the impactFactors table into an R data frame and print it out in a formatted table.  The impactFactors table is typically thousands of records long, but for brevity in this example analysis, we filter it to only 2 materials and 2 impact categories.
+
+```{r}
+# loading the impact factor data into an R data frame
+impactFactors <-
+  read.csv(
+    file = "source_data/impact_factors.csv", 
+    header = TRUE, 
+    stringsAsFactors = FALSE  #
+  ) %>%
+  # limiting it to two impact categories and two materials
+  filter(
+    (impactCategory== "Energy demand" | 
+       impactCategory=="Water consumption") &
+      (material=="Electronics" | material=="FoodWaste") 
+  ) %>%
+  # sorting it for easier reading
+  arrange(impactCategory, material, LCstage, disposition)
+# a formatted printout
+kable(impactFactors)
+```
+The fields making up impactFactors can be viewed as:
+
+```{r}
+str(impactFactors)
+```
+As you recall, the critical field in this table is *impactFactor*.  This number expresses an environmental impact for a particular tonnage of a particular material in a particular life cycle stage.  All the other variables in each record identify or qualify the impact factor somehow -- e.g. name the material, label its units, etc. 
+
+There should be EXACTLY one record for each combination of material, life cycle stage, disposition, and impactCategory of interest.  Material and disposition names must be identical in spelling and case to the material and disposition names in the massProfiles table.
+
+If desired, we can produce summaries of records in the impactFactors table.  E.g., Here are the numbers of records representing each disposition and LCstage: 
+
+```{r}
+table(impactFactors$disposition, impactFactors$LCstage)
+```
+Such tables can be used to confirm that impactFactors does not contain unnecessary duplicates.   For example, since there are 2 materials and 2 impact categories under consideration, there should be exactly 4 production-related impact factors -- as the table shows.
+
+### Merging the two tables to produce impactsInDetail.
+
+massProfiles and impactsInDetail will be merged to allow us to calculate impacts, but before we do that we must address a limitation of massProfiles.  So far massProfiles only includes tons of materials handled at the end-of-life phase of the life cycle.  We must also account for the tons of those materials that are handled at two other life cycle stages: end-of-life transport and production.  
+
+We will add tonnages representing production here using a simple copy- and append operation.  In the following code,  all the cases from massProfiles are copied, labeled with a disposition (and umbDisp) of "production," and then added back to massProfiles, creating a new data frame, massProfilesPlus.
+
+```{r}
+# copy end-of-life tons and label them as production tons
+tempProductionMasses <-
+  massProfiles %>%
+  mutate(
+    disposition="production",
+    umbDisp="production",
+    miles=NA
+  )
+# add the production tons to the end-of-life tons
+massProfilesPlus <-
+  bind_rows(
+    massProfiles,
+    tempProductionMasses
+  ) %>%
+  # sort the new, larger table
+  arrange(
+    scenario, wasteshed, material, disposition
+  )
+rm(tempProductionMasses) # remove temporary table
+```
+
+The resulting table, massProfilesPlus, should have exactly twice the total tonnage of massProfiles.  Moreover, within each scenario, production tons should have the same sum as end-of-life tons.
+
+```{r}
+sum(massProfiles$tons)
+sum(massProfilesPlus$tons)
+massProfilesPlus %>% 
+  group_by(scenario, umbDisp) %>%
+  summarise(tons=sum(tons))
+```
+
+The tonnages associated with end-of-life transport are still missing, but they will be generated during the following merge of massProfiles and impactFactors.  
+
+The merge is made on unique combinations of material and disposition name.  Since the resulting file has both tons (from the massProfiles table) and impactFactor (from the impactFactors table), these can be multiplied to get an impact in units of impactUnits.  
+
+Like so:
+
+```{r}
+impactsInDetail <-
+  # joining all impact factors relevant to massProfiles
+  left_join(  # important: use left_join not full_join
+    massProfilesPlus,
+    impactFactors,
+    by = c("material", "disposition")
+  ) %>%
+  # calculating impacts with special considerations 
+  # for end-of-life transport impacts
+  mutate(
+    # if miles is missing replace it with default value
+    miles = ifelse(is.na(miles), impliedMiles, miles),
+    # calculate impact 
+    impact =
+      case_when(
+        LCstage != "endOfLifeTransport" ~ tons*impactFactor,
+        LCstage == "endOfLifeTransport" ~
+          tons*(miles/impliedMiles)*impactFactor
+      )
+  ) %>%
+  arrange(impactCategory, scenario, material, LCstage, disposition)
+```
+
+This creates a data frame, impactsInDetail, with records for each combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  A printout of this table is relatively lengthy:
+
+```{r}
+kable(
+  impactsInDetail
+)
+```
+
+Some things to note about the impactsInDetails table:
+
+* Each line is labeled with the *umbDisp* from massProfiles, so distinctions can be made between recovery and disposal impacts or tonnages if desired.
+* There are 3 LCstages (production, end-of-life transport, and end-of-life treatment) represented in impactsInDetail.  The properties of the left_join merge have created the records needed to represent the (hitherto missing) end-of-life transport stage.  Since in every impact category, each material & end-of-life disposition has *two* records in impactFactors (one for the LCstage endOfLife and another for endOfLifeTransport), a left_join has added tonnages related to end-of-life transport.
+
+### Checking the internal consistency of *impactsInDetail*
+
+Before using the impactsInDetail file to calculate results, some basic quality checks should be performed.  
+
+For example, tonnages associated with all life cycles should have the same value within each scenario.  That is, within each scenario, tons for "production" should be the same as tons for "endOfLifeTransport" and "endOfLife".  Code like the following can confirm that:
+
+```{r}
+impactsInDetail %>%
+  group_by(LCstage, scenario) %>%
+  summarise(tons=sum(tons)) %>%
+  arrange(scenario, LCstage) %>%
+  kable()
+```
+Note that tonnages in the table above are not identical to tonnages listed in the massProfiles table.  Besides the recent addition of production-related tons, and end-of-life transport tons, impactsInDetails has a complete set of tons for every impactCategory in use.
+
+It is also valuable to check that every record has an impact factor. No impact factors should be missing, and any that are zero should be viewed with suspicion (because impactFactors of exactly zero are unlikely, and may represent a computation error or lazy assumption).  In addition, impact and tons may be zero but should not be missing.  These things can be checked with code like this:
+
+```{r}
+impactsInDetail %>% 
+  filter(is.na(impactFactor) | impactFactor==0) %>%
+  nrow()
+impactsInDetail %>%
+  filter(is.na(impact)) %>%
+  nrow()
+impactsInDetail %>%
+  filter(is.na(tons)) %>%
+  nrow()
+  
+```
+
+In each of these cases, the nrow() call has output 0. This means that our impactsInDetail table has passed these particular quality checks.  If nrow() output >1, then it would be necessary to backtrack and correct something.
+
+When impactsInDetail fails such simple internal-consistency checks, it is likely to be the result of mismatches between the massProfiles and impactFactors tables.  Spellings of material and disposition names must match exactly, and every field in every table (with the exception of the *miles* field) must be filled in with a reasonable value.
+
+### Creating tabular and graphical output 
+
+##### Guidelines
+
+The impactsInDetail data frame is the source of all future output from this analysis.  Most results of interest -- for example, the total waste tonnages and total impacts linked to each scenario -- are simple summations of tons or impacts from impactsInDetail.  
+
+When creating results from impactsInDetail, recall that:
+
+* there is much redundancy in this data table now -- an abundance of records representing every combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  So data must be filtered down to the desired specific content to avoid miscalculation.
+* when tons are summed, they should be restricted to tons marked with the "endOfLife" LCstage.  The tons that appear in other LCstages are redundant and only serve for the calculation of the impacts of those stages.
+* furthermore when tons are summed, they should be restricted to a single impact category (it should not matter which) -- as the complete set of tonnages has been repeated for every impact category. 
+* impacts should be summed within the context of a single impactCategory -- unless users are willing to create, program, and defend a method for normalizing and/or summarizing across multiple impact categories.
+
+##### Some utility objects
+For the purpose of creating charts and tables, a few miscellaneous objects could be useful:
+
+* a plaintext list of material names, sorted in descending order of abundance
+* a table of likely impact category labels
+* a graphical theme for charts
+* an ordered list of scenario names
+
+```{r}
+# most abundant materials in the wastestream, in order
+materialSortOrder <-
+  massProfiles %>%
+  group_by(material) %>%
+  summarise(tons=sum(tons)) %>%
+  arrange(desc(tons)) %>%
+  pull(material)
+# a table of impact categories combined with units
+# (for use in chart labels)
+impactLabels <-
+  impactFactors %>%
+  select(impactCategory, impactUnits) %>%
+  distinct() %>%
+  mutate(
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      )
+  )
+# a custom graphic theme for charts, inspired by 
+# the fivethirtyeight theme
+theme_539 <- function() {
+  theme_fivethirtyeight() +
+  theme(
+    rect=element_rect(fill="transparent"),
+    panel.grid = element_blank(),
+    axis.ticks = element_line()
+  )
+}
+
+# making an ordered list of scenarios, where "baseline" is first
+scenarioOrder <- 
+  c(
+    "baseline",
+    setdiff(
+        massProfiles %>% 
+        select(scenario) %>% 
+        distinct() %>% 
+        pull(scenario),
+      "baseline")
+  )
+```
+
+##### Weights of waste in each of the scenarios
+
+Note that when weights are summed, only the "endOfLife" LCstage is used, and only a single impactCategory is used.
+
+```{r}
+# summing weights by disposition for each scenario
+tempWeightData1 <- 
+  impactsInDetail %>%
+  filter(
+    LCstage == "endOfLife" & impactCategory=="Energy demand"
+    ) %>% # correct set for weight calculations
+  group_by(scenario, disposition) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder)))
+kable(tempWeightData1)
+```
+
+making that weight data into a chart...
+
+```{r fig.width=6.5, fig.height=4.5}
+tempWeightChart1 <-
+  ggplot()+
+  ggtitle("Weight (short tons)")+
+  theme_539()+
+  geom_bar(
+    data = tempWeightData1,
+    aes(x = scenario, y= tons, fill= disposition),
+    color=NA,
+    stat="identity"
+  )+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE)+
+  coord_flip()+
+  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="bottom",
+    legend.title = element_text(size=8),
+    legend.justification="left"
+    )
+# printing the chart to the current device
+tempWeightChart1
+# saving the chart as external files
+ggsave("chart_output/weights.png")
+ggsave("chart_output/weights.svg")
+```
+
+##### Life cycle impacts for waste in each scenario
+
+Now for comparison, let's look at the impacts associated with those scenarios.  But here we will have to deal with more voluminous output, because there are multiple impact categories.
+
+First, sum up the impacts in similar detail to the weight chart:
+```{r}
+tempImpactData1 <-
+  impactsInDetail %>%
+  group_by(scenario, impactCategory, impactUnits) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      )
+  ) 
+kable(tempImpactData1)
+```
+
+For a single impactCategory, we can make an impact chart analagous to the weight chart:
+```{r fig.width=6.5, fig.height=4.5}
+# chose a single impactCategory
+tempImpactCategory <- sample_n(impactLabels, 1)
+# get the impacts for that category
+tempImpactChart1 <-
+  ggplot()+
+  ggtitle(tempImpactCategory$impactLabel)+
+  theme_539()+
+  geom_bar(
+    data = 
+      tempImpactData1 %>% 
+        filter(impactCategory==tempImpactCategory$impactCategory),
+    aes(x = scenario, y= impact, fill=scenario),
+    color=NA,
+    stat="identity"
+  )+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE)+
+  coord_flip()+
+  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="none",
+    legend.title = element_text(size=8),
+    legend.justification="left"
+    )
+tempImpactChart1
+ggsave("chart_output/impacts1.png")
+ggsave("chart_output/impacts1.svg")
+```
+
+If we use a more complex layout, we can create a single image with facets expressing all of the available impact categories:
+
+```{r fig.width=6.5, fig.height=4.5}
+tempImpactChart1 <-
+  ggplot()+
+  ggtitle("Impacts of scenarios compared")+
+  theme_539()+
+  geom_bar(
+    data = tempImpactData1,
+    aes(x = scenario, y= impact, fill=scenario),
+    color=NA,
+    # size=2,
+    stat="identity"
+  )+
+  geom_text(
+    data=tempImpactData1,
+    aes(x=scenario, y=0, label=scenario),
+    color="gray80",
+    size=3,
+    fontface="italic",
+    hjust=-0.1
+  )+
+  facet_wrap(~impactLabel, ncol=2, scales="free")+
+  scale_fill_viridis(
+    begin=0.1, end=0.7, option="cividis", discrete = TRUE
+  )+
+  coord_flip()+
+#  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="none",
+    axis.text.x=element_text(angle=45, hjust=1),
+    axis.text.y=element_blank(),
+    strip.text = element_text(size=11, face="bold")
+    )
+tempImpactChart1
+ggsave("chart_output/impacts2.png") 
+ggsave("chart_output/impacts2.svg")
+```
+Such side-by-side results show that management scenarios do not affect all impact categories equally.   In the chart above:
+
+* maximizing recovery ("recover_nearly_all") decreases energy demand somewhat compared to baseline, but does not decrease water consumption.
+* eliminating food waste dramatically reduces water consumption, but the decrease for energy demand is somewhat smaller.
+
+##### Detailing weight by umbrella disposition
+
+The charts above don't have a lot of detail about waste management.  Let's redo the weight chart so that it characterizes the weight-based recovery rate in each scenario.  For that, we sum weights by scenario and umbDisp:
+
+```{r}
+# summing weights by umbDisp for each scenario
+tempWeightData2 <- 
+  impactsInDetail %>%
+  filter(
+    LCstage == "endOfLife" & impactCategory == "Energy demand"
+  ) %>% # correct set for weight calculations
+  group_by(scenario, umbDisp) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder))) %>%
+  group_by(scenario) %>%
+  mutate(recovTons=ifelse(umbDisp=="recovery",tons,0)) %>%
+  ungroup()
+kable(tempWeightData2)
+
+# creating a data file that expresses weight-based
+# recovery rate for each scenario
+tempWeightData2a <-
+  tempWeightData2 %>%
+  group_by(scenario) %>%
+  summarise(
+    recovTons=sum(recovTons),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  mutate(recovRate=recovTons/tons)
+kable(tempWeightData2a)
+```
+
+making that weight data into a chart...
+
+```{r fig.width=6.5, fig.height=4.5}
+tempWeightChart2 <-
+  ggplot()+
+  ggtitle("Weight (short tons) and recovery rates (%)")+
+  theme_539()+
+  geom_bar(
+    data = tempWeightData2,
+    aes(x = scenario, y= tons, fill= umbDisp),
+    color=NA,
+    stat="identity"
+  )+
+  geom_text(
+    data=tempWeightData2a,
+    aes(x=scenario, y=tons, label=percent(recovRate)),
+    hjust=1.1,
+    color="white"
+  )+
+  scale_fill_viridis(
+    begin=0.32, end=0.8, option="viridis", discrete = TRUE
+    )+
+  coord_flip()+
+  guides(fill=guide_legend(ncol=2, title.position = "top"))+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="bottom",
+    legend.title = element_text(size=8),
+    legend.justification="left"
+    )
+tempWeightChart2
+ggsave("chart_output/weights2.png")
+ggsave("chart_output/weights2.svg")
+```
+##### Illustrating impacts by life cycle stage
+
+Previously the impacts associated with each scenario were given only as net values -- the sum of three life cycle stages.  It can be interesting to show how those three stages contribute to the net.   To do that, we sum impacts by scenario and LCstage:
+
+```{r}
+tempImpactData2 <-
+  impactsInDetail %>%
+  group_by(scenario, LCstage, impactCategory, impactUnits) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      ),
+    LCstage=
+      factor(
+        LCstage,
+        levels=c("production","endOfLife","endOfLifeTransport")
+      )
+  ) 
+kable(tempImpactData2)
+```
+
+Now make that into a chart, with life cycle stage impacts in colors, and  the (previously calculated) net impact as a black outline.
+```{r fig.width=6.5, fig.height=4.5}
+tempImpactChart2 <-
+  ggplot()+
+  ggtitle("Impacts of scenarios with life cycle stage detail")+
+  theme_539()+
+  geom_bar(
+    data = tempImpactData2,
+    aes(x = scenario, y= impact, fill=LCstage),
+    color=NA,
+    # size=2,
+    stat="identity"
+  )+
+  geom_bar(
+    data=tempImpactData1 %>% mutate(LCstage="Net"),
+    aes(x=scenario, y=impact, color=LCstage),
+    stat="identity",
+    fill=NA,
+    size=2
+  )+
+  geom_text(
+    data=tempImpactData1 %>% mutate(LCstage="Net"),
+    aes(x=scenario, y=0, label=scenario),
+    stat="identity",
+    color="gray20",
+    size=3,
+    fontface="italic",
+    hjust=-0.1,
+    vjust=0.5
+  )+
+  facet_wrap(~impactLabel, ncol=2, scales="free")+
+  scale_color_manual(values="black")+
+  scale_fill_viridis(
+    begin=0.32, end=0.95, option="magma", discrete = TRUE,
+    direction = -1
+  )+
+  coord_flip()+
+  guides(
+    color=guide_legend(nrow=1, title=NULL),
+    fill=guide_legend(nrow=1, title.position = "left")
+    )+
+  theme(
+    rect=element_rect(fill="transparent"),
+    plot.title = element_text(size=12),
+    legend.position="top",
+    axis.text.x=element_text(angle=45, hjust=1),
+    axis.text.y=element_blank(),
+    strip.text = element_text(size=11, face="bold")
+    )
+tempImpactChart2
+ggsave("chart_output/impacts3.png") 
+ggsave("chart_output/impacts3.svg")
+```
+
+The chart above shows that, at least in this analysis, production impacts (the tan color) make by far the biggest contribution to the net impact (black outline).  End-of-life credits are visible, in the "recover_nearly_all" scenario, but they are smaller than many might guess.  End-of-life transport impacts are so small they are not visible, probably obscured by the black "net" line.
+
+##### Heatmap
+
+Another way to compare impact results across scenarios is the "heatmap", where all impacts are scaled to the baseline value.
+
+Here is the code to produce a data table which can be drawn as a heatmap:
+
+```{r}
+tempImpactData3 <-
+  tempImpactData1 %>% 
+  filter(scenario=="baseline") %>%
+  select(impactLabel, impact) %>%
+  rename(baselineImpact=impact)
+tempImpactData3a <-
+  left_join(
+    tempImpactData1,
+    tempImpactData3,
+    by= c("impactLabel")
+  ) %>%
+  mutate(
+    pctBaselineImpact=impact/baselineImpact
+  )
+kable(tempImpactData3a)
+```
+
+now, to make that into a chart:
+
+```{r fig.width=6.5, fig.height=4.5}
+tempImpactChart3 <-
+  ggplot()+
+  ggtitle("Heatmap of scenario impacts (as % of baseline)")+
+  theme_539()+
+  geom_tile(
+    data=tempImpactData3a,
+    aes(y=scenario, x=impactLabel, fill=pctBaselineImpact),
+    color="white"
+  )+
+  geom_text(
+    data=tempImpactData3a,
+    aes(
+      y=scenario, x=impactLabel, label=percent(pctBaselineImpact,1)
+    ),
+    color="white"
+  )+
+  scale_fill_viridis(begin=0.2, end=0.7, option="inferno")+
+  theme(
+    plot.title = element_text(size=12),
+    rect=element_rect(fill="transparent"),
+    panel.grid = element_blank(),
+    axis.ticks = element_line(),
+    axis.text.x = element_text(hjust=1, angle=45)
+  )
+tempImpactChart3
+ggsave("chart_output/impacts4.png")
+ggsave("chart_output/impacts4.svg")
+```
+
+
+##### Weight vs impacts within a single scenario
+
+Most of the results displayed above are high-level summaries.  But it's also helpful to look at a local waste stream in detail, to see how weight and impacts compare across individual materials.  Here I set up a data table that can draw a comparison between weights and impacts of individual materials within a single scenario.  Both waste and impacts are characterized as a percentage of the relevant waste-shed wide total.
+
+Setting up such comparisons involves some more extended data processing.
+
+```{r}
+tempWeightData4 <-
+  impactsInDetail %>%
+  filter(
+    LCstage == "endOfLife" & impactCategory=="Energy demand"
+  ) %>% # correct set for weight calculations
+  group_by(wasteshed, scenario, material, umbDisp) %>% 
+  summarise(tons=sum(tons)) %>%
+  ungroup() %>%
+  filter(tons != 0) %>%
+  mutate(scenario= factor(scenario, levels=rev(scenarioOrder))) %>%
+  mutate(recovTons=ifelse(umbDisp=="recovery",tons,0)) %>%
+  mutate(material=factor(material, levels=materialSortOrder))
+
+# creating a data file that expresses weight-based
+# recovery rate for each scenario
+tempWeightData4a <-
+  tempWeightData4 %>%
+  group_by(wasteshed, scenario, material) %>%
+  summarise(
+    recovTons=sum(recovTons),
+    tons=sum(tons)
+  ) %>%
+  ungroup() %>%
+  mutate(recovRate=recovTons/tons)
+
+# total weight for the scenario
+tempWeightData4b <-
+  tempWeightData4a %>%
+  group_by(wasteshed, scenario) %>%
+  summarise(allTons=sum(tons)) %>%
+  ungroup()
+
+# combining that total
+tempWeightData4c <-
+  full_join(
+    tempWeightData4a,
+    tempWeightData4b,
+    by=c("wasteshed", "scenario")
+  ) %>%
+  mutate(pctTons=tons/allTons)
+
+# adding impact categories
+tempWeightData4d <-
+  left_join(
+    tempWeightData4c %>% mutate(dummy=1),
+    impactLabels %>% mutate(dummy=1),
+    by="dummy"
+  ) %>%
+  select(-dummy) %>%
+  filter(impactCategory != "Energy demand")
+```
+
+Now processing the impact data into parallel form...
+```{r}
+tempImpactData4 <-
+  impactsInDetail %>%
+  group_by(
+    wasteshed,
+    scenario, 
+    material,
+    LCstage, 
+    impactCategory, impactUnits
+  ) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup() %>%
+  mutate(
+    scenario = factor(scenario, levels = rev(scenarioOrder)),
+    impactLabel = 
+      paste(
+        impactCategory,
+        " (",
+        impactUnits,
+        ")",
+        sep=""
+      ),
+    LCstage=
+      factor(
+        LCstage,
+        levels=c("production","endOfLife","endOfLifeTransport")
+      )
+  ) %>%
+  filter(impactCategory != "Energy demand") #removing to save space
+
+tempImpactData4a <-
+  tempImpactData4 %>%
+  group_by(
+    wasteshed, 
+    scenario, 
+    material, 
+    impactCategory, 
+    impactUnits, 
+    impactLabel
+  ) %>%
+  summarise(impact=sum(impact)) %>%
+  ungroup()
+
+tempImpactData4b <-
+  tempImpactData4a %>%
+  group_by(
+    wasteshed, scenario, impactCategory, impactUnits, impactLabel
+  ) %>%
+  summarise(allImpact=sum(impact)) %>%
+  ungroup()
+
+tempImpactData4c <-
+  full_join(
+    tempImpactData4a,
+    tempImpactData4b,
+    by=c(
+      "wasteshed", "scenario", "impactCategory",
+      "impactUnits", "impactLabel"
+    )
+  ) %>%
+  mutate(pctImpact=impact/allImpact)
+```
+
+now lining those percentages up into a long, skinny file
+
+```{r}
+weightImpactComparisonData1 <-
+  bind_rows(
+    tempWeightData4d %>%
+      select(scenario, wasteshed, material, pctTons, impactLabel) %>%
+      rename(pctTotal=pctTons) %>%
+      mutate(dataType="weight"),
+    tempImpactData4c %>%
+      select(scenario, wasteshed, material, pctImpact, impactLabel) %>%
+      rename(pctTotal=pctImpact) %>%
+      mutate(dataType="impact")
+  ) %>%
+  arrange(wasteshed, scenario, material, impactLabel)
+
+```
+
+For the chart I'll select only 1 wasteshed and 1 impact category.
+
+```{r fig.height=4.5, fig.width=6.5}
+weightImpactComparisonData2 <-
+  filter(
+    weightImpactComparisonData1,
+    scenario=="baseline",
+    impactLabel=="Water consumption (kg)"
+  ) %>%
+  mutate(dataType=factor(dataType, levels=c("weight", "impact")))
+ggplot()+
+  ggtitle("Weight vs. water consumption impact for baseline scenario")+
+  theme_539()+
+  geom_bar(
+    data=weightImpactComparisonData2,
+    aes(x=material, y=pctTotal, fill=dataType),
+    stat="identity",
+    color=NA
+  )+
+  scale_y_continuous(
+    name="Percent of total for wasteshed",
+    labels=percent
+  )+
+  scale_fill_viridis(begin = 0.32, end=0.8, 
+                      discrete=TRUE,
+                      option="cividis",
+                      direction=1)+
+  facet_grid(wasteshed~dataType)+
+  coord_flip()+
+  theme(
+    rect=element_rect(fill="transparent"),
+    axis.ticks=element_line(),
+    legend.position="none",
+    axis.title=element_text(),
+    plot.title=element_text(size=12)
+  )
+ggsave("chart_output/weight_impact_comparison.png")
+ggsave("chart_output/weight_impact_comparison.svg")
+```
+
+This kind of chart often ends up exposing the way weight can be a poor proxy for life cycle impacts.  Above, though electronics are a small portion of weight, they are a noticeably large portion of impacts.

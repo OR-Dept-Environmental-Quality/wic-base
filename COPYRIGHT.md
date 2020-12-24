@@ -1,0 +1,2 @@
+# copyright statement
+Waste Impact Calculator (WIC) is copyright 2020- by Oregon Department of Environmental Quality, under terms of the GNU General Public License, version 3 or later -- see the attached LICENSE document.

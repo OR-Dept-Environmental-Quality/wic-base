@@ -2,6 +2,10 @@
 /impactFactors/source/
 !/impactFactors/source/readme.txt
 
+# Word documents that may contain nonpublishable comments
+# and details
+.docx
+
 # History files
 .Rhistory
 .Rapp.history
