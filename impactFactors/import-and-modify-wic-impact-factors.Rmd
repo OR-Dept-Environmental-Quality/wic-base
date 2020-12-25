@@ -9,9 +9,7 @@ by Martin Brown, Martin.Brown@state.or.us
 
 Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the current file tree.
 
-However, those finished impact factors have to come from somewhere.  Their source is modeling within the GABI life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GABI are not immediately usable in WIC.  They need to be imported, filtered, and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, and the (slightly) transformed factors saved for use elsewhere in WIC.
-
-This R markdown document performs and explains that process. 
+However, those finished impact factors have to come from somewhere.  Their source is modeling within the GABI life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GABI are not immediately usable in WIC.  They need to be imported, filtered, and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, after which the resulting factors are saved for use elsewhere in WIC.  This R markdown document performs and explains that process. 
 
 ### Inputs and outputs
 
@@ -36,8 +34,8 @@ Once the Gabi CSV files are imported, some filtering and relabeling of this volu
 
 There are some complications along the way.  The most notable is the fact that there are actually 2 different files we need to import...
 
-* impact factors where greenhouse gas emissions calculations involving biogenic carbon include WIC's "slash" correction; and 
-* impact factors where greenhouse gas emissions involving biogenic carbon include WIC's "EPA FCS" correction. 
+* a file with impact factors where greenhouse gas emissions calculations involving biogenic carbon include WIC's "slash" correction; and 
+* a file with impact factors where greenhouse gas emissions involving biogenic carbon include WIC's "EPA FCS" correction. 
 
 These biogenic factors need to be labeled appropriately and merged so there is only one impact factor file in the end.  See *Technical Overview of the Waste Impact Calculator* and *Impact modeling for the Waste Impact Calculator* for more detail about the substance of these corrections.
 
@@ -50,7 +48,7 @@ The following rough steps apply.
 * Apply the Slash and EpaFCS labels to biogenic carbon fields.
 * Save an 'unmodified' version of the file(s) for quality checking vs. Gabi model.
 * Apply modifications called for in the *Technical Overview*.
-* Save in suitable formats for future use.
+* Save modified factors in suitable formats for future use.
 
 ### Setting up
 ```{r}
@@ -127,13 +125,13 @@ csRaw %>% sample_n(randomFewNo) %>% print()
 
 ### Filtering and parsing the raw import.
 
-As those random records  show, there's a lot of extraneous stuff in those Gabi imports.  I need to filter down to the rows that actually contain the rolled-up impact factors, and then parse some of the values into more intuitive/distinct fields.
+As the randomly printed records above show, there's a lot of extraneous stuff in those Gabi imports.  I need to filter down to the rows that actually contain the rolled-up impact factors for individual materials and life cycle stages and/or dispositions, and then parse some of the values into more intuitive/distinct fields.
 
 ```{r}
 csRawObjectPath <-
    csRaw %>% 
   # only use one particular Object path that represents 
-  # summed up impact factors
+  # summed up-impact factors
    filter(`Object path`=="Waste Impact Calculator <LC>") %>%
   # eliminate unneeded fields
    select(-Scenario, -`Object path`, 
@@ -168,7 +166,8 @@ csRawObjectPath <-
    ) %>%
    select(-theRestOfIt)
 
-# print the random records
+# print a few random records from the data frame
+# that was just created
 csRawObjectPath %>% sample_n(randomFewNo) %>% print()
 ```
 
@@ -176,10 +175,11 @@ csRawObjectPath %>% sample_n(randomFewNo) %>% print()
 
 The impactCategories that WIC needs are in the field Quantity, but they're all mixed up with corporate sources like "TRACI 2.1". Rather than writing a parsing routine, I'm going to refer to a lookup table that will do the parsing -- as well as choose a short list of impact categories to use and apply corrections to the names.
 
-First I need to create the lookup table -- something I should only do once, as the table is meant to be edited manually.  But here is the format:
+This lookup table is called "impactCategoryPickerFixer.xlsx" and should be found within the "source" folder in the current folder tree.  But if it can't be found, then the following code will create an Excel file in the necessary format:
 
 ```{r}
-# get all the unique combinations of Quantity Folder, Quantity, and Unit
+# get all the unique combinations of Quantity Folder, 
+# Quantity, and Unit
 impactCategoryPickerFixerStarter <-
   csRawObjectPath %>%
   select(c("Quantity Folder", "Quantity", "Unit")) %>%
@@ -193,34 +193,55 @@ impactCategoryPickerFixerStarter <-
     impactUnits = NA
   ) %>%
   arrange(`Quantity Folder`, Quantity)
-# saving it as an Excel file
+# save it as an Excel file
 write.xlsx(
   impactCategoryPickerFixerStarter,
   file="source/current/impactCategoryPickerFixerStarter.xlsx"
 )
 ```
 
-Ok, I created the table and filled it in, but saved it with a different filename just in case.
-
-Let's import the lookup file and then merge it ... hopefully we won't lose any records.  Once it's joined, I can start carving out only the fields and impact categories I want.
+Assuming the lookup file can be found and is populated, now we import it and merge it with the impact factor information.  
 
 ```{r}
-# importing impactCategoryPickerFixer lookup file
+# import impactCategoryPickerFixer lookup file
 impactCategoryPickerFixer <-
   readxl::read_excel(
     path=impactCategoryPickerFixerFileSpec
   )
 
-# merging 
+# preview the join to see if there are any records
+# in csRawObjectPath that WON'T match up with 
+# the impactCategoryPickerFixer
+csSelectedCheck <-
+  anti_join(
+    csRawObjectPath,
+    impactCategoryPickerFixer,
+    by=c("Quantity Folder", "Quantity")
+  )
+
+print(
+  paste(
+    "There are ", nrow(csSelectedCheck), 
+    " row(s) that don't join.", sep=""
+  )
+)
+```
+
+If at this point, there are any rows that don't join, I should figure out the problem before moving on.  However, as of this writing, everything is getting a match.
+
+Do the join:
+
+```{r}
+# merge with impact factor info from Gabi 
 csSelected <-
   full_join(
     csRawObjectPath,
     impactCategoryPickerFixer,
     by=c("Quantity Folder", "Quantity")
   ) %>%
-  # filtering only short-listed impact categories
+  # filter to keep only short-listed impact categories
   filter(shortList==TRUE) %>%
-  # keep only fields I want in this order
+  # retain only certain fields, in a certain order
   select(fileSource, material, LCstage, disposition, 
          corporateSource, impactCategory, impactUnits,
          Value, impactCategoryLong) %>%
@@ -230,11 +251,11 @@ csSelected <-
   arrange(fileSource, material, LCstage, disposition,
           corporateSource, impactCategory, impactUnits,
           impactFactor) %>%
-  # eliminate duplicates (though there shouldn't be any)
+  # eliminate duplicate rows (though there shouldn't be any)
   distinct()
 
-# print a few at random
-csSelected %>% sample_n(10) %>% print()
+# print a few of the joined records 
+csSelected %>% sample_n(randomFewNo) %>% print()
 
 ```
 
@@ -244,9 +265,9 @@ This is getting a lot closer to a usable impact factor file, but the LCstage and
 table(csSelected$disposition, csSelected$LCstage, useNA = "ifany")
 ```
 
-There are only two LCstages -- endOfLife and production.  Meanwhile the end-of-life dispositions include transport versions.  Let's assign the end-of-life transport stuff to its own LCstage.
+There are only two LCstages in the table above -- endOfLife and production.  Meanwhile the end-of-life dispositions include transport versions.  Let's assign the end-of-life transport stuff to its own LCstage.
 
-Plus there's something weird going on with Textiles, which has a disposition called "recyclingGeneric <LC>".  
+Plus, as of this run, there's something weird going on with Textiles, which has a disposition called "recyclingGeneric <LC>".  That probably needs to be fixed in Gabi, so I will make an "issue" out of it.
 
 ```{r}
 csSelected2 <-
@@ -307,7 +328,7 @@ junk <-
 table(junk$material,junk$disposition)
 ```
 
-It's food waste.  Check that later.
+It's food waste.  Is that appropriate? I'll make an "issue" out of it in github.
 
 ### Applying the Slash & EpaFcs labels 
 
@@ -322,6 +343,9 @@ table(csSelected2$impactCategory, csSelected2$fileSource, useNA="always")
 So the impactCategories that include "biogenic" are the ones that need to be changed.
 
 ```{r}
+# replace the generic qualifier "biogenic" in GHG-related
+# impactCategory names with more specific qualifier
+# drawn from the fileSource
 csSelected3 <-
   csSelected2 %>%
   mutate(
@@ -340,24 +364,27 @@ table(
 That looks like it worked.  Now I can remove duplicates.
 
 ```{r}
+# remove duplicates from impact factor collection
 impactFactorsSelected <-
   csSelected3 %>%
   select(-fileSource) %>%
   distinct() %>%
+  # sort as desired
   arrange(impactCategoryLong, material, disposition)
 ```
 
 ### Saving an "unaltered" import for checking.
 
+At this point the impact factors from Gabi have been imported and filtered, but none of the quantities have been changed.  Let's save  the factors at this point so we can check the import itself against the original Gabi files (if desired).
+
 ```{r}
 write.xlsx(
   impactFactorsSelected,
-  file="source/current/importedButUnalteredForCheckingVsGabi.xlsx"
+  file="intermediate/importedButUnalteredForCheckingVsGabi.xlsx"
 )
 ```
 
-Hmm... everything so far has checked out.  I have q's about the substance of the impact factors, but the import process has been ok.
-Need to move on to modifying the factors.
+As of this writing, every check I have made on the import *process* has been good.  Questions about the values themselves I have created as "issues" in github.
 
 ### Modifying factors 
 
@@ -462,7 +489,7 @@ rm(ifEOLJunk1,  ifJunk1, ifJunk2, ifProdJunk1,
    csSlashFileSpec, impactCategoryPickerFixer,
    impactCategoryPickerFixerFileSpec,
    impactCategoryPickerFixerStarter,
-   junk)
+   junk, csSelectedCheck)
 ```
 
 The object impactFactors1 has most of the impact factors in a pretty clean, tidy state, but still needs a few more improvements.
@@ -557,7 +584,7 @@ impactFactorsBetter <-
   rename(impactFactor=impactFactor2)
 ```
 
-In addition, I find that the material "nonrecyclables" doesn't a production impact.  I'm just going to take it from the mean of the other materials.  This is probably something I should improve later, though, as it isn't weighted by any real waste stream.
+In addition, I find that the material "nonrecyclables" doesn't a production impact.   (This makes sense, as "nonrecyclables" aren't actually a material -- they're just a collection of miscellaneous things that can't be recycled.)  To fill in the database I'm just going to make an impact factor from the mean of the other materials.  However, other analysts down the line could do a better job by creating weighted average impact factors here based on an observed wastestream. 
 
 ```{r}
 tempProductionImpacts <-
