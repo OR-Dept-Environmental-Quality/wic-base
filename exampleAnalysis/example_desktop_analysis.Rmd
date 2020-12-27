@@ -1,5 +1,5 @@
 ---
-title: "Simple WIC analysis using R Markdown"
+title: "Example WIC analysis using R Markdown"
 output:
   word_document: default
   html_document:
@@ -10,28 +10,39 @@ by Martin Brown, [Martin.Brown@state.or.us]()
 
 ### Introduction
 
-This RMarkdown document provides an example of using the Waste Impact Calculator (WIC) framework to estimate the life cycle environmental impacts associated with solid waste streams, and to compare the estimated environmental impacts associated with various waste management scenarios.  
+This RMarkdown document provides an example application of the Waste Impact Calculator (WIC) framework.  Beginning with a solid waste stream that has been characterized only in terms of weight and end-of-life disposition (e.g. "50 tons of food waste composted", "10 tons of landfilled"), it estimates the life cycle environmental impacts associated with that waste stream. It also compares the environmental impacts associated with various *alternative* scenarios for managing that waste (e.g. preventing food waste rather than composting it).
 
 Along the way, this document provides pointers on how to properly combine, filter, and summarize WIC's data tables, so that the final results actually represent the scenarios you are interested in evaluating.  Before programming your own analyses, you should have a clear understanding of:
 
-* how WIC calculates impacts for individual life cycle stages; and
+* how WIC calculates impacts for individual life cycle stages (see "Prerequisites", below); and
 * how file structures and joining commands (for example *left_join* and *full_join* in R's dplyr package) can create sets of impacts that represent the materials life cycle.
 
 ### Intended audience
 
 This document is oriented towards more technical users -- those familiar with statistical or database operations.  This document assumes a beginner-to-intermediate familiarity with the R language, especially the packages "base," "dplyr", and "ggplot2". However, once WIC's principles are understood, the WIC framework does not specifically require R.
 
-Less technical users may want to spend some time with the [interactive web app version of WIC](), which does not require programming.  This app may be useful for more technical users as well, as it illustrates a variety of the types of output the WIC framework can create.
+Less technical users may want to spend some time with the interactive web app version of WIC, which does not require programming.  This app should be published online in 2021 -- check the [Waste Impact Calculator github page]() for status.  The app may be useful for more technical users as well, as it illustrates a wide variety of the types of output the WIC framework can create.
 
 ### Prerequisites
 
-["Technical overview of the Waste Impact Calculator"]() describes the the purpose, limitations, and basic operation of WIC.  It also documents the meaning of all the fields in each of WIC's data tables -- information that will, for the most part, not be repeated here.
+* ["Technical overview of the Waste Impact Calculator"]() describes the the purpose, limitations, and basic operation of WIC.  It also documents the meaning of all the fields in each of WIC's data tables -- information that will, for the most part, not be repeated here.
+* Experience with R as described above.
+
+### Conventions
+
+* the words *mass* and *weight* are used interchangeably. The distinction between these terms is important in other fields, but not in Earthbound waste management.
+* weights are in short tons
 
 ### Outline
 
-This document compares the life cycle environmental impacts associated with 3 management scenarios for fictional municipal wastestreams.  The management scenarios are:
+This document compares the life cycle environmental impacts associated with 3 management scenarios for a fictional municipal wastestream.  To keep printouts short and comprehensible, there are only 2 materials:
 
-* "baseline"  (representing an "actual" recent mix of recycling and disposal);
+* FoodWaste
+* Electronics
+
+The management scenarios are:
+
+* "baseline"  (representing the "actual, observed" recent mix of recycling and disposal);
 * "eliminate_food_waste" (food waste is assumed to be zero); and
 * "recover_nearly_all" (maximize recycling and composting) 
 
@@ -46,6 +57,9 @@ The analysis will proceed in this order:
 ### Preparing the R workspace
 
 ```{r}
+# checking working directory
+getwd()
+
 # loading packages useful for the analysis
 library(tidyverse)  # many useful functions for data management
 library(ggthemes)   # some themes for plotting
@@ -58,7 +72,7 @@ library(svglite)    # helps write charts to SVG files
 
 ### Loading *massProfiles* and *impactFactors*
 
-As you recall from ["Technical overview of the Waste Impact Calculator"](), the massProfiles table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
+As you recall from *Technical overview of the Waste Impact Calculator*, the massProfiles table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
 
 Here we load the massProfiles table into an R data frame, and print it out in a formatted table.
 
@@ -84,40 +98,36 @@ str(massProfiles)
 ```
 As you recall, *tons* is the critical variable.  This is a mass of some waste material, in short tons. All the other variables serve to identify or qualify where the *tons* came from, what kind of management they represent, what life cycle stage they represent, etc.
 
-If desired, we can summarise weight-based waste statistics for each scenario from massProfiles.  For example, tere is the number of tons of waste for each umbDisp within each scenario:
+If desired, we can summarise weight-based waste statistics for each scenario from massProfiles.  For example, here is the summed number of tons of waste within each scenario:
 ```{r}
 massProfiles %>%
-  group_by(scenario, umbDisp) %>%
+  group_by(scenario) %>%
+  summarize(tons=sum(tons)) %>%
+  kable()
+```
+Here is a similar table with a bit more detail about what happens to all that waste at end of life:
+
+```{r}
+massProfiles %>%
+  group_by(scenario, material, disposition) %>%
   summarize(tons=sum(tons)) %>%
   kable()
 ```
 
-You could do a different analysis to generate a list of the materials present in the waste stream (across all scenarios).
-```{r}
-materialsObserved <-
-  massProfiles %>%
-  group_by(material) %>%
-  summarise(summedTons = sum(tons, na.rm=TRUE)) %>%
-  ungroup()
-print(materialsObserved)
-rm(materialsObserved)
-```
+This example illustrates an important quality of the Waste Impact Calculator.  As you recall from the *Technical Overview*, the tons, dispositions, and miles listed in massProfiles *are the ONLY data* that distinguish solid waste management scenarios from one another.  All of the user's waste management ideas must be expressed in the massProfiles data frame!  For example, a waste management scenario that increases recycling compared to baseline should have more tons associated with recycling dispositions, and less tons associated with disposal dispositions.
 
-As you recall, the tons, dispositions, and miles listed in massProfiles are the data that distinguish solid waste management scenarios.  Here is an example of how massProfile information expresses the difference between solid waste management scenarios, "baseline" and "eliminate_food_waste":
+Here is an example of how massProfile information expresses the difference between solid waste management scenarios, "baseline" and "eliminate_food_waste":
 
 ```{r}
 massProfiles %>%
   filter(
-    scenario=="baseline" | scenario=="eliminate_food_waste",
-    material=="Electronics" | material=="FoodWaste",
-    wasteshed=="City A"
+    scenario=="baseline" | scenario=="eliminate_food_waste"
     ) %>%
   kable()
 ```
+The "eliminate_food_waste" scenario has far fewer total tons than the other scenarios, because (in this scenario) all food waste has been eliminated-- it is neither landfilled nor composted nor combusted.  (This is an impressive civic accomplishment!  A more realistic goal might have been reducing food waste by 40%, but this example uses the extreme case.)
 
-Note how the weights and dispositions for electronics are the same between scenarios, but in the "eliminate_food_waste" scenario food waste has been reduced to zero tons.
-
-WIC's other source data table is impactFactors.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
+WIC's other source data table is *impactFactors*.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
 
 Here we load the impactFactors table into an R data frame and print it out in a formatted table.  The impactFactors table is typically thousands of records long, but for brevity in this example analysis, we filter it to only 2 materials and 2 impact categories.
 
@@ -125,11 +135,15 @@ Here we load the impactFactors table into an R data frame and print it out in a 
 # loading the impact factor data into an R data frame
 impactFactors <-
   read.csv(
-    file = "source_data/impact_factors.csv", 
+    file = "../impactFactors/distributable/impactFactors.csv", 
     header = TRUE, 
     stringsAsFactors = FALSE  #
   ) %>%
-  # limiting it to two impact categories and two materials
+  # for the sake of brevity in this example analysis ,
+  # limiting the impactFactors to two impact categories
+  # and two materials.  In regular usage there is no
+  # need to do such filtering -- the impactFactors 
+  # data frame may be left complete.
   filter(
     (impactCategory== "Energy demand" | 
        impactCategory=="Water consumption") &
@@ -145,16 +159,26 @@ The fields making up impactFactors can be viewed as:
 ```{r}
 str(impactFactors)
 ```
-As you recall, the critical field in this table is *impactFactor*.  This number expresses an environmental impact for a particular tonnage of a particular material in a particular life cycle stage.  All the other variables in each record identify or qualify the impact factor somehow -- e.g. name the material, label its units, etc. 
+As you recall from *Technical overview of the Waste Impact Calculator*, the critical field in this table is *impactFactor*.  This number expresses an environmental impact for a particular mass of a particular material in a particular life cycle stage.  All the other variables in each record identify or qualify the impact factor somehow -- e.g. name the material, label its units, etc. 
 
-There should be EXACTLY one record for each combination of material, life cycle stage, disposition, and impactCategory of interest.  Material and disposition names must be identical in spelling and case to the material and disposition names in the massProfiles table.
-
-If desired, we can produce summaries of records in the impactFactors table.  E.g., Here are the numbers of records representing each disposition and LCstage: 
+The impactFactors data frame should have EXACTLY one record for each combination of material, life cycle stage, disposition, and impactCategory of interest.  Though impactFactor tables provided by Oregon DEQ should have this characteristic, you can check it if you desire, for example like this:
 
 ```{r}
-table(impactFactors$disposition, impactFactors$LCstage)
+# checking for rows of impactFactors that might be duplicates
+# and printing a summary sentence
+print(
+  paste(
+    "There are ",
+    impactFactors %>%
+      group_by(material, LCstage, disposition, impactCategory) %>%
+      summarise(myCount=n()) %>% # number of rows in each group
+      filter(myCount != 1) %>% # keep only rows where count <> 1
+      nrow(),
+    " rows in impactFactors that need to be inspected for duplicates.",
+    sep=""
+  )
+)
 ```
-Such tables can be used to confirm that impactFactors does not contain unnecessary duplicates.   For example, since there are 2 materials and 2 impact categories under consideration, there should be exactly 4 production-related impact factors -- as the table shows.
 
 ### Merging the two tables to produce impactsInDetail.
 
@@ -184,19 +208,40 @@ massProfilesPlus <-
 rm(tempProductionMasses) # remove temporary table
 ```
 
-The resulting table, massProfilesPlus, should have exactly twice the total tonnage of massProfiles.  Moreover, within each scenario, production tons should have the same sum as end-of-life tons.
+The resulting table, massProfilesPlus, should have exactly twice the total tonnage of massProfiles.  Moreover, within each scenario, production tons should have the same sum as end-of-life tons.  This can be checked...
 
 ```{r}
-sum(massProfiles$tons)
-sum(massProfilesPlus$tons)
+print(
+  paste(
+    "Total tonnage in massProfiles is ",
+    sum(massProfiles$tons),
+    ".",
+    sep=""
+  )
+)
+
+print(
+  paste(
+    "Total tonnage in massProfilesPlus is ",
+    sum(massProfilesPlus$tons),
+    ".",
+    sep=""
+  )
+)
+
 massProfilesPlus %>% 
-  group_by(scenario, umbDisp) %>%
-  summarise(tons=sum(tons))
+  group_by(scenario) %>%
+  summarise(
+    prodTons=sum(ifelse(umbDisp=="production",tons,0)),
+    eolTons=sum(ifelse(umbDisp!="production",tons,0))
+  ) %>%
+  print()
+
 ```
 
 The tonnages associated with end-of-life transport are still missing, but they will be generated during the following merge of massProfiles and impactFactors.  
 
-The merge is made on unique combinations of material and disposition name.  Since the resulting file has both tons (from the massProfiles table) and impactFactor (from the impactFactors table), these can be multiplied to get an impact in units of impactUnits.  
+The merge is made on unique combinations of material and disposition name.  Since the resulting file has both tons (from the massProfiles table) and impactFactor scaled to tons (from the impactFactors table), these can be multiplied to get an impact in units of impactUnits.  
 
 Like so:
 
