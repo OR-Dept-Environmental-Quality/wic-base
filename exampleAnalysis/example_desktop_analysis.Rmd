@@ -324,18 +324,21 @@ The impactsInDetail data frame is the source of all future output from this anal
 
 When creating results from impactsInDetail, recall that:
 
-* there is much redundancy in this data table now -- an abundance of records representing every combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  So data must be filtered down to the desired specific content to avoid miscalculation.
+* there is much redundancy in this data table now:  records representing every combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  So data must be filtered down to the desired specific content to avoid miscalculation.
 * when tons are summed, they should be restricted to tons marked with the "endOfLife" LCstage.  The tons that appear in other LCstages are redundant and only serve for the calculation of the impacts of those stages.
-* furthermore when tons are summed, they should be restricted to a single impact category (it should not matter which) -- as the complete set of tonnages has been repeated for every impact category. 
-* impacts should be summed within the context of a single impactCategory -- unless users are willing to create, program, and defend a method for normalizing and/or summarizing across multiple impact categories.
+* furthermore, when tons are summed, they should be restricted to a single impact category (it should not matter which) -- as the complete set of tonnages has been repeated for every impact category. 
+* impacts should be summed only within a single impactCategory -- unless users are willing to create, program, and defend a method for normalizing and/or summarizing across multiple impact categories.
 
 ##### Some utility objects
+
 For the purpose of creating charts and tables, a few miscellaneous objects could be useful:
 
-* a plaintext list of material names, sorted in descending order of abundance
-* a table of likely impact category labels
+* a plaintext list of material names, sorted in descending order of abundance. (While the current example analysis has only 2 materials, most WIC analysese will be considerably more involved.)
+* a table of likely impact category labels.  (Impact categories like "Energy demand" do not currently include physical units, such as "MJ" for megajoules.  An impact category label would merge those for use on chart axes.)
 * a graphical theme for charts
 * an ordered list of scenario names
+
+Creating those things...
 
 ```{r}
 # most abundant materials in the wastestream, in order
@@ -417,7 +420,7 @@ tempWeightChart1 <-
     color=NA,
     stat="identity"
   )+
-  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE)+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE, option="A")+
   coord_flip()+
   guides(fill=guide_legend(ncol=2, title.position = "top"))+
   theme(
@@ -461,7 +464,7 @@ kable(tempImpactData1)
 
 For a single impactCategory, we can make an impact chart analagous to the weight chart:
 ```{r fig.width=6.5, fig.height=4.5}
-# chose a single impactCategory
+# chose a single impactCategory at random
 tempImpactCategory <- sample_n(impactLabels, 1)
 # get the impacts for that category
 tempImpactChart1 <-
@@ -476,7 +479,7 @@ tempImpactChart1 <-
     color=NA,
     stat="identity"
   )+
-  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE)+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE, option="B")+
   coord_flip()+
   guides(fill=guide_legend(ncol=2, title.position = "top"))+
   theme(
@@ -515,7 +518,7 @@ tempImpactChart1 <-
   )+
   facet_wrap(~impactLabel, ncol=2, scales="free")+
   scale_fill_viridis(
-    begin=0.1, end=0.7, option="cividis", discrete = TRUE
+    begin=0.1, end=0.7, discrete = TRUE, option="C"
   )+
   coord_flip()+
 #  guides(fill=guide_legend(ncol=2, title.position = "top"))+
@@ -534,7 +537,7 @@ ggsave("chart_output/impacts2.svg")
 Such side-by-side results show that management scenarios do not affect all impact categories equally.   In the chart above:
 
 * maximizing recovery ("recover_nearly_all") decreases energy demand somewhat compared to baseline, but does not decrease water consumption.
-* eliminating food waste dramatically reduces water consumption, but the decrease for energy demand is somewhat smaller.
+* eliminating food waste dramatically reduces water consumption, but the decrease in energy demand is somewhat smaller.
 
 ##### Detailing weight by umbrella disposition
 
@@ -591,7 +594,7 @@ tempWeightChart2 <-
     color="white"
   )+
   scale_fill_viridis(
-    begin=0.32, end=0.8, option="viridis", discrete = TRUE
+    begin=0.32, end=0.8, option="D", discrete = TRUE
     )+
   coord_flip()+
   guides(fill=guide_legend(ncol=2, title.position = "top"))+
@@ -668,7 +671,7 @@ tempImpactChart2 <-
   facet_wrap(~impactLabel, ncol=2, scales="free")+
   scale_color_manual(values="black")+
   scale_fill_viridis(
-    begin=0.32, end=0.95, option="magma", discrete = TRUE,
+    begin=0.32, end=0.95, option="E", discrete = TRUE,
     direction = -1
   )+
   coord_flip()+
@@ -734,7 +737,7 @@ tempImpactChart3 <-
     ),
     color="white"
   )+
-  scale_fill_viridis(begin=0.2, end=0.7, option="inferno")+
+  scale_fill_viridis(begin=0.2, end=0.7, option="A")+
   theme(
     plot.title = element_text(size=12),
     rect=element_rect(fill="transparent"),
@@ -747,6 +750,9 @@ ggsave("chart_output/impacts4.png")
 ggsave("chart_output/impacts4.svg")
 ```
 
+In this display, the darker colors indicate for the  eliminate_food_waste scenario show a dramatic effect on water consumption, and a notable effect on energy demand.  Shades of orange for the recover_nearly_all scenario show much more modest effects, compared to the baseline scenario.
+
+Though this heatmap is very simple -- just 6 numbers -- this kind of display can be useful for identifying "hotspots" and gradients within grids of dozen or hundreds of numbers.
 
 ##### Weight vs impacts within a single scenario
 
