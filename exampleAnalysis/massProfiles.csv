@@ -1,0 +1,13 @@
+scenario,wasteshed,material,disposition,umbDisp,tons,miles
+baseline,Anytown,FoodWaste,landfilling,disposal,7669,178
+baseline,Anytown,YardDebris,composting,recovery,9000,4
+compostFW585,Anytown,FoodWaste,composting,recovery,585,77
+compostFW585,Anytown,FoodWaste,landfilling,disposal,7084,77
+compostFW585,Anytown,YardDebris,composting,recovery,9000,77
+compostFW1000,Anytown,FoodWaste,composting,recovery,1000,77
+compostFW1000,Anytown,FoodWaste,landfilling,disposal,6669,178
+compostFW1000,Anytown,YardDebris,composting,recovery,9000,77
+reduceFW03,Anytown,FoodWaste,landfilling,disposal,7439,178
+reduceFW03,Anytown,YardDebris,composting,recovery,9000,4
+reduceFW06,Anytown,FoodWaste,landfilling,disposal,7209,178
+reduceFW06,Anytown,YardDebris,composting,recovery,9000,4
