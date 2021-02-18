@@ -1,58 +1,58 @@
 ---
 title: "Example WIC analysis using R Markdown"
 output:
+  word_document: default
   html_document:
     df_print: paged
-  word_document: default
 ---
 
 by Martin Brown, [Martin.Brown@state.or.us]()
 
 ### Introduction
 
-This RMarkdown document provides an example application of the Waste Impact Calculator (WIC) framework.  
+This R Markdown document provides an example application of the Waste Impact Calculator (WIC) framework.  Using an actual real-world waste management question from an Oregon city (here renamed Anytown), it demonstrates the basic steps involved in nearly any WIC analysis.
 
-You, the reader of this document, play the part of a waste manager or sustainability analyst from Anytown, Oregon.  This document shows how you use WIC to deal with a realistic waste management question.  In particular, you will learn to:
+You, the reader, play the part of a waste manager or sustainability analyst from Anytown.  You will:
 
-* convert the waste management question into waste streams linked to scenario labels in a *massProfiles* table;
-* combine your *massProfiles* with *impactFactors* and filter and summarize the results for each of those scenarios, in multiple impact categories; 
-* delve into the reasons the scenarios differ -- and often, fail to differ; and finally,
+* convert a waste management question into waste streams linked to scenario labels in a __*massProfiles*__ table;
+* combine your __*massProfiles*__ with the __*impactFactors*__ table provided by WIC, and filter and summarize the results for each of your scenarios, in multiple impact categories (GHGs, water use, etc.); 
+* delve into the reasons the scenarios differ -- or perhaps, fail to differ much; and finally,
 * reflect on what WIC has and hasn't told you.
 
-Along the way, you'll find pointers on how to properly combine, filter, and summarize WIC's data tables, so that the final results actually represent the scenarios you are interested in evaluating.  
+Along the way, you'll find pointers on how to properly combine, filter, and summarize WIC's data tables, so that the final results actually represent the scenarios you want to evaluate.  
 
 ### Intended audience
 
-This document is oriented towards more technical users -- those familiar with statistical or database operations.  This document assumes an intermediate familiarity with the R language, especially the packages "base," "dplyr", and "ggplot2". 
+This document is oriented towards more technical users: those familiar with statistical or database operations.  This document assumes a beginning-to-intermediate familiarity with the R language, especially the packages "base," "dplyr", "rmarkdown", and "ggplot2". Though R is used here, R is not specifically required to create results using WIC.  No matter what computer setup is involved, the elementary steps will be the same -- and you are responsible for your own work! :)
 
-Before using this document as the basis for new analyses, you should have a clear understanding of:
+Before using this document, or WIC in general, as the basis for new analyses, you should have a clear understanding of:
 
 * how WIC calculates impacts for individual life cycle stages (see "Prerequisites", below); and
-* how file structures and joining commands (for example *left_join* and *full_join* in R's dplyr package) can create sets of impacts that represent the materials life cycle. 
-
-Though R is used by the authors of this document, the WIC framework is not specifically required.  You are responsible for your own work no matter what computer system you use. :)
+* how file structures and joining commands (for example *left_join* and *full_join* in R's dplyr package) can create sets of impacts that represent the phases of the materials life cycle. 
 
 ### Prerequisites
 
 * Read ["Technical overview of the Waste Impact Calculator"]().  This describes the the purpose, limitations, and basic operation of WIC.  It also documents the meaning of all the fields in each of WIC's data tables -- information that will, for the most part, not be repeated here.
-* Experience with R as described above. 
+* Have experience with R as described above. 
 
 ### Conventions
 
-* the words *mass* and *weight* are used interchangeably. The distinction between these terms is important in other fields, but not in Earthbound waste management.
+* the words "table" and "data frame" are used interchangeably. The latter refers to a specific data structure in R, but it is equivalent to a table.
+* the words "mass" and "weight" are used interchangeably. The distinction between these terms is important in other fields, but not in Earthbound waste management.
+* the term "impact category" is used to describe quantities such as global warming potentials, which are technically "LCIA profiles", as well as quantities like water use summaries, which are technically "inventory metrics."
 * weights are in short tons
 
-### Anytown's question and your expectations of WIC
+### Anytown's situation and your expectations of WIC
 
 You work for Anytown's sustainability department and are concerned about the environmental impacts of Anytown's municipal food waste.
 
-In particular you are considering implementing a food waste composting scheme, but don't know if it is worth the effort it would require.  You know that composting food waste is likely to be better on an environmental impact basis than simply landfilling it, but it is unclear how big the improvement would be.  Another option is the idea of trying to reduce the sheer generation of food waste through a public education campaign -- which would have its own difficulties, but, as an "upstream" strategy, might be more powerful than the "downstream" one of composting.
+In particular you are considering implementing a food waste composting scheme, but don't know if it is worth the effort it would require.  You feel that composting food waste is likely to be better on an environmental impact basis than simply landfilling it, but it is unclear how big the improvement would be.  Another option is the idea of trying to reduce the sheer generation of food waste through a public education campaign -- which would have its own difficulties, but, as an "upstream" strategy, might be more powerful than the "downstream" one of composting.
 
 You will use WIC to compare Anytown's current treatment of food waste (the "baseline" scenario) with two scenarios for increasing composting of food waste, and two scenarios for reducing food waste generation.  
 
 You expect that WIC will estimate life cycle impacts for each scenario, in enough detail that the reasons for differences between scenarios can be understood.  At the same time, you understand that WIC is about environmental impacts only -- it will not specifically output other relevant information such as the cost of infrastructure or staff.  
 
-So WIC is unlikely to be the only basis for Anytown's final decision about how to proceed.  But its environmental impact numbers will play an important part.
+Therefore WIC is unlikely to be the only basis for Anytown's final decision about how to proceed.  But its environmental impact numbers should play an important part.
 
 ### Defining baseline and alternative scenarios
 
@@ -66,14 +66,14 @@ To establish the tonnages linked to the baseline situation, you must do a a bit 
 
 Accordingly, 
 
-* the "baseline" scenario in your *massProfiles* is defined by 9000 tons of yard debris going 4 miles to composting, and 7669 tons of food debris going 178 miles to landfill.
+* the "baseline" scenario in your __*massProfiles*__ is defined by 9000 tons of yard debris going 4 miles to composting, and 7669 tons of food debris going 178 miles to landfill.
 
 To represent the proposed addition of food waste to yard debris, you define two more scenarios:
  
 * "compostFW585": where 585 tons of food waste are added to yard debris and all composting happens at the new site, 77 miles away; the remainder of food waste is landfilled as usual.
 * "compostFW1000": where 1000 tons food waste are added to yard debris and all composting happens at a new site, 77 miles away; the remainder of food waste is landfilled as usual.
 
-You do not create a scenario where all food waste is included with yard debris.  You consider it unlikely that all homes and businesses contributing to Anytown's garbage collection will have the interest and ability to put all their food waste in with yard debris.
+You do not create a scenario where *all* food waste is included with yard debris.  You consider it unlikely that all homes and businesses contributing to Anytown's garbage collection will have the interest and ability to put all their food waste in with yard debris.  In fact the compostFW585 scenario is considered most realistic, as it is based on the observed mixture of food waste and yard debris in a nearby city that collects food waste and yard debris together.
 
 As an alternative to increased composting, you also create scenarios representing successful efforts to reduce the generation of food waste. Though this "upstream" solution is potentially powerful, anecdotal experience suggests that reducing food waste generation is not easy.  An optimistic example is provided by [the comprehensive WRAP progam in the UK, which reduced household food waste by 6% over 3 years](https://www.wrap.org.uk/sites/files/wrap/Courtauld_Commitment_2025_Milestone_Progress_Report.pdf).  Half of that, a 3 percent reduction might be more realistic for Anytown.  
 
@@ -91,12 +91,12 @@ You want to know:
 
 ### Outline of the analysis
 
-Your analysis proceeds in this order:
+Your analysis will proceed in this order:
 
 * preparing the R workspace
-* loading in the two source data tables, massProfiles and impactFactors
-* calculating impacts and creating the master results data table, impactsInDetail
-* checking for  internal consistency of impactsInDetail
+* loading in the two source data frames, __*massProfiles*__ and __*impactFactors*__
+* calculating impacts and creating the master results data table, __*impactsInDetail*__
+* checking for  internal consistency of __*impactsInDetail*__
 * creating summary statistics and graphics using both weight and impact perspectives
 
 ### Preparing the R workspace
@@ -115,11 +115,11 @@ library(viridis)    # nice & accessible color schemes
 library(svglite)    # helps write charts to SVG files
 ```
 
-### Loading *massProfiles* and *impactFactors*
+### Loading __*massProfiles*__ and __*impactFactors*__
 
-As you recall from *Technical overview of the Waste Impact Calculator*, the massProfiles table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
+As you recall from *Technical overview of the Waste Impact Calculator*, the __*massProfiles*__ table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
 
-You have prepared the massProfiles table representing your five scenarios in a CSV file. Here you load it in to an R data frame, and print it out in a formatted table.
+You have prepared a __*massProfiles*__ table representing your five scenarios in a CSV file. Here you load it in to an R data frame, and print it out in a formatted table.
 
 ```{r}
 # loading the mass profile data into an R data frame
@@ -135,9 +135,9 @@ kable(
   caption="massProfiles for Anytown's analysis of food waste"
 )
 ```
-Notice how the massProfiles table, in its compact way, provides ALL the details of the management scenarios you defined earlier.  This is the only place in this base version of WIC that you get to provide input to the system!
+Notice how the __*massProfiles*__ table, in its compact way, provides ALL the details of the management scenarios you defined earlier.  The __*massProfiles*__ table is the main place you provide input to the WIC system.
 
-Here you list the fields in massProfiles:
+Here you list the fields in __*massProfiles*__:
 
 ```{r}
 str(massProfiles)
@@ -146,7 +146,7 @@ As you recall, *tons* is the critical variable.  This is a mass of some waste ma
 
 Note that the technical disposition of the material (landfilling or composting) is recorded independently of its legal classification (recovery or disposal) in the field umbDisp.  The umbDisp field is provided as a convenience, so that you can calculate weight-based statistics such as diversion rates.  However, impacts are always calculated based on the disposition name.  The legal classification should have no effect on impact results.
 
-Here are a few weight-based waste statistics for each scenario from massProfiles: the tons of waste generated, the tons of waste recovered, and the weight-based recovery rate, as a fraction.
+Here are a few weight-based waste statistics for each scenario from __*massProfiles*__: the tons of waste generated, the tons of waste recovered, and the weight-based recovery rate, as a fraction.
 ```{r}
 massProfiles %>%
   group_by(scenario) %>%
@@ -159,11 +159,11 @@ massProfiles %>%
     ) %>%
   kable()
 ```
-It appears that the scenario compostFW1000 has the highest weight-based recovery rate.  You are interested in finding out -- does that mean compostFW1000 will also represent the smallest life cycle impact? 
+It appears that the scenario compostFW1000 has the highest weight-based recovery rate.  You are interested in finding out -- does that mean compostFW1000 will also represent the smallest life cycle impact?  Stay tuned!
 
-WIC's other source data table is *impactFactors*.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
+WIC's other source data table is __*impactFactors*__.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
 
-Here you load the complete impactFactors table into an R data frame.  Since it is thousands of records long, you print out only a small sample of it to see what it looks like.
+Here you load the complete "impactFactors.csv" file, provided with WIC, into an R data frame, which you name __*impactFactorsAll*__.  Since it is thousands of records long, you print out only a small sample of it to see what it looks like.
 
 ```{r}
 impactFactorsAll <-
@@ -174,7 +174,7 @@ impactFactorsAll <-
   )
 kable(impactFactorsAll %>% head(20))
 ```
-Many of these records, and some of the diagnostic fields such as *corporateSource* and *gabiExportDate*, are unnecessary for the current analysis.  You cut impactFactorsAll down to a manageable size -- using only the materials and dispositions and impact categories that you need -- and save the result as impactFactors.
+Many of these records, and some of the diagnostic fields such as *corporateSource* and *gabiExportDate*, are unnecessary for the current analysis.  You cut __*impactFactorsAll*__ down to a manageable size -- using only the materials and dispositions and impact categories that you need -- and save the result as __*impactFactors*__.
 
 ```{r}
 # learning the materials in the massProfiles table and 
@@ -201,13 +201,17 @@ allImpactCategories <-
 impactCategoriesToUse <-
   setdiff(
     allImpactCategories, 
+    # what follow are the categories to NOT use
     c(
-      "GWP 100",
-      "GWP 100 (EpaFcs)",
+#      "GWP 100",
+#      "GWP 100 (EpaFcs)",
       "GWP 100 (Slash)",
       "GWP 20 (Slash)",
-      "Human health particulate air",
-      "Human toxicity, non-cancer"
+      "GWP 20 (EpaFcs)",
+      "GWP 20",
+#      "Human health particulate air",
+      "Human toxicity, non-cancer",
+      "Human toxicity, cancer"
       )
   )
 
@@ -226,8 +230,9 @@ impactFactors <-
       impactCategory %in% impactCategoriesToUse
   ) %>%
   # there are also several diagnostic columns that may be 
-  # removed for the sake of this example analysis.. see the
-  # technical overview for their meaning.
+  # removed for the sake of this example analysis.. see 
+  # Technical Overview of the Waste Impact Calculator
+  # for their meaning.
   select(
     -corporateSource, -impactCategoryLong, 
     -gabiExportDate, -wicImportDate
@@ -242,7 +247,7 @@ kable(
 ```
 As you recall from *Technical overview of the Waste Impact Calculator*, the critical field in this table is *impactFactor*.  This number expresses an environmental impact for a particular mass of a particular material in a particular life cycle stage.  All the other variables in each record identify or qualify the impact factor somehow -- e.g. name the material, label its units, etc. 
 
-The impactFactors data frame should have EXACTLY one record for each combination of material, life cycle stage, disposition, and impactCategory of interest.  Though impactFactors tables provided by Oregon DEQ should have this characteristic, you can check it if you desire, for example like this:
+The __*impactFactors*__ data frame should have EXACTLY one record for each combination of material, life cycle stage, disposition, and impactCategory of interest.  Though __*impactFactors*__ tables provided by Oregon DEQ should have this characteristic, you can check it if you desire, for example like this:
 
 ```{r}
 # checking for rows of impactFactors that might be duplicates
@@ -261,11 +266,11 @@ print(
 )
 ```
 
-### Merging the two tables to produce impactsInDetail.
+### Merging the two tables to produce __*impactsInDetail*__.
 
-You must merge *massProfiles* and *impactsInDetail* to calculate impacts, but before you do that you must address a limitation of massProfiles.  So far massProfiles only includes tons of materials handled at the end-of-life phase of the life cycle.  You must also account for the tons of those materials that are handled at two other life cycle stages: end-of-life transport and production.  
+You must merge __*massProfiles*__ and __*impactFactors*__ to calculate impacts, but before you do that you must address a limitation of __*massProfiles*__.  So far __*massProfiles*__ only includes tons of materials handled at the end-of-life phase of the life cycle.  You must also account for the tons of those materials that are handled at two other life cycle stages: end-of-life transport and production.  
 
-You will add tonnages representing production here using a simple copy- and append operation.  In the following code,  all the cases from massProfiles are copied, labeled with a disposition (and umbDisp) of "production," and then added back to massProfiles, creating a new data frame, massProfilesPlus.
+You will add tonnages representing production here using a simple copy- and append operation.  In the following code,  all the cases from __*massProfiles*__ are copied, labeled with a *disposition* (and *umbDisp*) of "production," and then added back to __*massProfiles*__, creating a new data frame, __*massProfilesPlus*__.
 
 ```{r}
 # copy end-of-life tons and label them as production tons
@@ -289,7 +294,7 @@ massProfilesPlus <-
 rm(tempProductionMasses) # remove temporary table
 ```
 
-The resulting table, massProfilesPlus, should have exactly twice the total tonnage of massProfiles.  Moreover, within each scenario, production tons should have the same sum as end-of-life tons.  This too you can check...
+The resulting table, __*massProfilesPlus*__, should have exactly twice the total tonnage of __*massProfiles*__.  Moreover, within each *scenario*, production tons should have the same sum as end-of-life tons.  This too you can check...
 
 ```{r}
 print(
@@ -320,11 +325,11 @@ massProfilesPlus %>%
 
 ```
 
-The tonnages associated with end-of-life transport are still missing, but you will generate them during the following merge of massProfiles and impactFactors.  
+The tonnages associated with end-of-life transport are still missing, but you will generate them during the following merge of __*massProfiles*__ and __*impactFactors*__.  
 
-The merge is made on unique combinations of material and disposition name. However, since impactFactors has *two* life cycle stages (endOfLifeTransport and endOfLife) in the field LCstage for each disposition name, records will effectively be added to represent endOfLifeTransport tons.
+The merge is made on unique combinations of *material* and *disposition* name. However, since __*impactFactors*__ has *two* life cycle stages (endOfLifeTransport and endOfLife) in the field *LCstage* for each *disposition* name, records will effectively be added to represent endOfLifeTransport tons.
 
-The merged file has both tons (from the massProfiles table) and impactFactor scaled to tons (from the impactFactors table), which can then be multiplied to get an impact in units of impactUnits. 
+The merged file has both tons (from the __*massProfiles*__ table) and *impactFactor* scaled to tons (from the __*impactFactors*__ table), which can then be multiplied to get an impact in units of *impactUnits*. 
 
 Like so:
 
@@ -352,7 +357,7 @@ impactsInDetail <-
   arrange(impactCategory, scenario, material, LCstage, disposition)
 ```
 
-This creates a data frame, impactsInDetail, with records for each combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  A printout of this table is very lengthy, so you will print out only the records associated with a single impact category:
+This creates a data frame, __*impactsInDetail*__, with records for each combination of *scenario, wasteshed, material, LCstage, disposition,* and *impactCategory*.  A printout of this table is very lengthy, so as a visual check, you print out only the records associated with a single *impactCategory*:
 
 ```{r}
 kable(
@@ -362,11 +367,11 @@ kable(
 )
 ```
 
-Note that each line is labeled with the *umbDisp* from massProfiles, so distinctions can be made between recovery and disposal impacts or tonnages if desired.
+Note that each line is labeled with the *umbDisp* from __*massProfiles*__, so distinctions can be made between recovery and disposal impacts or tonnages if desired.
 
 ### Checking the internal consistency of *impactsInDetail*
 
-Before using the impactsInDetail table to calculate results, some basic quality checks should be performed.  
+Before using the __*impactsInDetail*__ table to calculate results, some basic quality checks should be performed.  
 
 For example, tonnages associated with all life cycles should have the same value within each scenario.  That is, within each scenario, tons for "production" should be the same as tons for "endOfLifeTransport" and "endOfLife".  You use code like the following to confirm that:
 
@@ -377,9 +382,9 @@ impactsInDetail %>%
   arrange(scenario, LCstage) %>%
   kable()
 ```
-You note that tonnages in the table above are not identical to tonnages summarized earlier for the the massProfiles table.  Besides the recent addition of production-related tons, and end-of-life transport tons, impactsInDetails has a complete set of tons for every impactCategory in use.
+You note that tonnages in the table above are not identical to tonnages summarized earlier for the the __*massProfiles*__ table.  Besides the recent addition of production-related tons, and end-of-life transport tons, __*impactsInDetail*__ has a complete set of tons for every *impactCategory* in use.
 
-You also check that every record has an impact factor. No impact factors should be missing, and any impact factors that are zero should be viewed with suspicion (because impactFactors of exactly zero are unlikely, and may represent a computation error or lazy assumption).  In addition, impact and tons may be zero but should not be missing.  These things can be checked with code like this:
+You also check that every record has a value in the *impactFactor* field. No impact factors should be missing, and any impact factors that are exactly zero should be viewed with suspicion (because impact factors of exactly zero are unlikely, and may represent a computation error or lazy assumption).  In addition, *impact* and *tons* may be zero but should not be missing.  These things can be checked with code like this:
 
 ```{r}
 impactsInDetail %>% 
@@ -394,17 +399,17 @@ impactsInDetail %>%
   
 ```
 
-In each of these cases, your nrow() call has output 0. This means that your impactsInDetail table has passed these particular quality checks.  If nrow() output >1, then it would be necessary to backtrack and correct something.
+In each of these cases, your nrow() call has output 0. This means that your __*impactsInDetail*__ table has passed these particular quality checks.  If nrow() output >1, then it would be necessary to backtrack and correct something.
 
-When impactsInDetail fails such simple internal-consistency checks, it is likely to be the result of mismatches between the massProfiles and impactFactors tables.  Spellings of material and disposition names must match exactly, and every field in every table (with the exception of the *miles* field) must be filled in with a reasonable value.
+When __*impactsInDetail*__ fails such simple internal-consistency checks, it is likely to be the result of mismatches between the __*massProfiles*__ and __*impactFactors*__ tables.  Spellings of *material* and *disposition* names must match exactly, and every field in every table (with the exception of the *miles* field) must be filled in with a reasonable value.
 
 ### Creating tabular and graphical output 
 
 ##### Guidelines
 
-The impactsInDetail data frame is the source of all future output from your analysis.  Most results of interest -- for example, the total waste tonnages and total impacts linked to each scenario -- are the result of simple filter, group, and summation operations on tons or impacts in impactsInDetail.  
+The __*impactsInDetail*__ data frame is the source of all future output from your analysis.  Most results of interest -- for example, the total waste tonnages and total impacts linked to each scenario -- are the result of simple filter, group, and summation operations on tons or impacts in __*impactsInDetail*__.  
 
-When creating results from impactsInDetail, you recall that:
+When creating results from __*impactsInDetail*__, you recall that:
 
 * there is much redundancy in this data table now:  records representing every combination of scenario, wasteshed, material, LCstage, disposition, and impactCategory.  So data must be filtered down to the desired specific content to avoid miscalculation.
 * when tons are summed, they should be restricted to tons marked with the "endOfLife" LCstage.  The tons that appear in other LCstages are redundant and only serve for the calculation of the impacts of those stages.
@@ -415,7 +420,7 @@ When creating results from impactsInDetail, you recall that:
 
 For the purpose of creating charts and tables, a few miscellaneous objects could be useful:
 
-* a plaintext list of material names, sorted in descending order of abundance. (While the current example analysis has only 2 materials, most WIC analysese will be considerably more involved.)
+* a plaintext list of material names, sorted in descending order of abundance. (While the current example analysis has only 2 materials, many WIC analyses will be considerably more involved.)
 * a table of likely impact category labels.  (Impact categories like "Energy demand" do not currently include physical units, such as "MJ" for megajoules.  An impact category label would merge those for use on chart axes.)
 * a graphical theme for charts
 * an ordered list of scenario names
@@ -472,9 +477,9 @@ scenarioOrder <-
 
 ##### Weights of waste in each of the scenarios
 
-Your analysis starts with a review of the weights handled in each scenario.  It's a good way to assure yourself your massProfiles have been entered accurately.
+Your analysis starts with a review of the weights handled in each scenario.  It's a good way to assure yourself your __*massProfiles*__ have been entered accurately.
 
-You recall that when weights are summed, only the "endOfLife" LCstage is used, and only a single impactCategory is used.
+You recall that when weights are summed, only the "endOfLife" *LCstage* is used, and only a single *impactCategory* is used.
 
 ```{r}
 # summing weights by disposition for each scenario
@@ -527,7 +532,7 @@ That chart shows you that most of the scenarios are similar in terms of total we
 With a bit more coding, you can produce the same chart with individual materials separated.
 
 ```{r}
-# summing weights by disposition for each scenario
+# summing weights by disposition for each scenario and material
 tempWeightData2 <- 
   impactsInDetail %>%
   filter(
@@ -574,7 +579,7 @@ ggsave("chart_output/weightsInd.png")
 ggsave("chart_output/weightsInd.svg")
 ```
 
-This chart shows you your massProfiles have described your scenarios fairly.  Yard debris does not change its weight throughout all scenarios, while the treatment of food waste varies somewhat.
+This chart shows you your __*massProfiles*__ have described your scenarios fairly.  Yard debris does not change its weight throughout all scenarios, while the treatment of food waste varies somewhat.
 
 ##### Life cycle impacts for waste in each scenario
 
@@ -738,13 +743,11 @@ ggsave("chart_output/impacts4.png")
 ggsave("chart_output/impacts4.svg")
 ```
 
-This display shows you that for many impact categories, baseline, compostFW585 and compostFW1000 have very similar impacts.  The exceptions are the two GWP categories, which represent 2-3% decreases in impact through composting, and ecotoxicity, where impacts actually go up through additional composting.  
+This display shows you that for many impact categories, baseline, compostFW585 and compostFW1000 have very similar impacts.  The exceptions are the two GWP categories, which represent 1-2% decreases in impact through composting, and ecotoxicity, where impacts actually go up through additional composting.  
 
-The reduceFW03 and reduceFW06 scenarios have declines, compared to baseline, that are very similar to the amounts of food waste reduced -- 3 and 6 percent respectively.
+Meanwhile, the reduceFW03 and reduceFW06 scenarios show declines in impact, compared to baseline, that are very similar to the amounts of food waste reduced -- 3 and 6 percent respectively.
 
-##### Question: which materials and life cycle stages represent the biggest part of this system's associated life cycle impacts?
-
-The heatmap results suggest that food waste generation is dominating the impacts of the whole system.  To check this, you display the impacts of materials and life cycle stages individually.
+This suggests that food waste generation is dominating the impacts of the whole system.  To check this, you display the impacts of materials and life cycle stages individually.
 
 ```{r}
 # calculating detailed impacts by scenario, material, and LCstage
@@ -822,62 +825,34 @@ ggsave(filename = "chart_output/impacts5.png")
 ggsave(filename = "chart_output/impacts5.svg")
 ```
 
-This chart shows you that in nearly every impact category:
+This chart shows you several important things:
 
-* it is not just food waste, but food waste production, that is dominating the impact total;
+* despite the fact that food waste has approximately the same total weight as yard debris (see earlier charts based only on weight), their life cycle impacts are very different.  
+* in most impact categories, it is the production phase of the materials life cycle for food waste that is dominating the impact total;
 * transport impacts are usually too small to even register in this display.
 
 The food waste reduction scenarios reduce impacts more than the composting scenarios because they reduce the amount of food waste WIC assumes is produced.
 
-So, did composting have any benefit at all?  To see this, we need to redraw the chart above so that the two materials have impacts displayed on different scales, so that yard debris' impacts can be observed.  We'll do this by making two different charts, one for food waste and the other for yard debris.
+So, did composting have any benefit at all?  You can check our __*impactsInDetail*__ table to make sure that there are some negative impacts associated with composting...
 
-Making the chart for yard debris...
-
-```{r fig.height=7.5, fig.width=10}
-tempImpactChart6 <-
-  ggplot()+
-  ggtitle("Yard debris impacts by LC stage (net in black)")+
-  theme_539()+
-  geom_bar(
-    data=tempImpactData5 %>% 
-      filter(material=="YardDebris") %>%
-      mutate(
-        scenario = factor(scenario, levels = rev(scenarioOrder)),
-      ),
-    aes(x=scenario, y=impact, fill=LCstage),
-    color=NA,
-    stat="identity",
-    alpha=0.5
-  )+
-  geom_bar(
-    data=tempImpactData5b %>% filter(material=="YardDebris"),
-    aes(x=scenario, y=impact),
-    stat="identity",
-    fill=NA,
-    color="black"
-  )+
-  scale_y_continuous(labels=comma)+
-  coord_flip()+
-  facet_wrap(
-    facets="impactLabel",
-    scales="free"
-    ,
-    labeller = labeller(impactLabel=label_wrap_gen(20))
-  )+
-  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE, 
-                     direction = -1)+
-  theme(
-    axis.text.x=element_text(size=8, angle=50, hjust=1, vjust=1),
-    panel.background=element_blank(),
-    panel.grid = element_blank(),
-    strip.text=element_text(size=8, face="bold")
-  )
-tempImpactChart6
-# saving the chart to a disk file
-ggsave(filename = "chart_output/impacts6.png")
-ggsave(filename = "chart_output/impacts6.svg")
+```{r}
+# list some negative entries (impact reductions) associated
+# with composting in the current impactsInDetail table
+impactsInDetail %>%
+  filter(LCstage=="endOfLife" & 
+           disposition == "composting" &
+           impact < 0
+         ) %>%
+  # removing a few fields to make printout narrower
+  select(-wasteshed, -impliedMiles, -umbDisp) %>% 
+  sample_n(10) %>%
+  kable()
 ```
-Making the chart for yard debris...
+This display shows you that composting benefits certainly are being registered by the WIC system.  They aren't showing up visibly on most of the impact charts because they are so small compared to the impacts of other processes (notably landfilling and production).
+
+To see how composting is playing out with individual materials, we need to redraw the chart above so that the two materials have impacts displayed on different scales.  We'll do this by making two different charts, one for food waste and the other for yard debris.
+
+Making the chart for food waste...
 
 ```{r fig.height=7.5, fig.width=10}
 tempImpactChart7 <-
@@ -924,5 +899,62 @@ tempImpactChart7
 ggsave(filename = "chart_output/impacts7.png")
 ggsave(filename = "chart_output/impacts7.svg")
 ```
+For food waste, we know that composting is contributing negative impacts in some impact categories (see earlier table), but it is not showing up in the "endOfLife" areas of the chart above because "endOfLife" also includes landfilling -- and the impacts linked to landfilling are greater than the benefits linked to composting.
 
-Finally, should go looking for the negative impacts (i.e. benefits) of composting.  Look in database.  They are there.  They just don't add up to enough to affect the total.
+This chart also shows some small contributions to total impact from end-of-life-transportation.
+
+Now, making the same chart for yard debris...
+
+```{r fig.height=7.5, fig.width=10}
+tempImpactChart6 <-
+  ggplot()+
+  ggtitle("Yard debris impacts by LC stage (net in black)")+
+  theme_539()+
+  geom_bar(
+    data=tempImpactData5 %>% 
+      filter(material=="YardDebris") %>%
+      mutate(
+        scenario = factor(scenario, levels = rev(scenarioOrder)),
+      ),
+    aes(x=scenario, y=impact, fill=LCstage),
+    color=NA,
+    stat="identity",
+    alpha=0.5
+  )+
+  geom_bar(
+    data=tempImpactData5b %>% filter(material=="YardDebris"),
+    aes(x=scenario, y=impact),
+    stat="identity",
+    fill=NA,
+    color="black"
+  )+
+  scale_y_continuous(labels=comma)+
+  coord_flip()+
+  facet_wrap(
+    facets="impactLabel",
+    scales="free"
+    ,
+    labeller = labeller(impactLabel=label_wrap_gen(20))
+  )+
+  scale_fill_viridis(begin=0.32, end=1, discrete = TRUE, 
+                     direction = -1)+
+  theme(
+    axis.text.x=element_text(size=8, angle=50, hjust=1, vjust=1),
+    panel.background=element_blank(),
+    panel.grid = element_blank(),
+    strip.text=element_text(size=8, face="bold")
+  )
+tempImpactChart6
+# saving the chart to a disk file
+ggsave(filename = "chart_output/impacts6.png")
+ggsave(filename = "chart_output/impacts6.svg")
+```
+When the analysis is limited to yard debris only, as in the chart above, some impact categories show clear benefits linked to composting -- for example, see the "endOfLife" entries for energy demand and GWP100, which are negative numbers.  
+
+The role of transport impacts can also be clearly seen.  Yard debris is generally a low-impact material in production and end-of-life treatment, giving end-of-life-transport impacts a proportionately large role.  The extra transport associated with the compostFW585 and compostFW1000 scenarios is enough to increase the impacts of those scenarios above baseline -- for example for energy demand, eutrophication and GWP 100.  When yard debris is the only material in the system, transport is a significant factor.
+
+However, yard debris is *not* the only part of the system.  In Anytown's situation, changes in the management of food waste affect management of yard debris, so they must be considered together.  When they are considered together, food waste represents the vast majority of impacts.
+
+If Anytown is interested in reducing the impacts of food waste and yard debris, there may be some promise in composting large amounts of food waste -- larger than have been considered in any of the current scenarios.  Of course, WIC allows you to create more scenarios and add them to the analysis, and you may follow that course if Anytown is very motivated to increase composting.
+
+But in general, the analysis suggests to you that a reduction in food waste generation is probably the most effective strategy for reducing the impacts of this waste system.
