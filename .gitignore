@@ -1,6 +1,7 @@
 # data files that are too large to push to github
 /impactFactors/source/
 !/impactFactors/source/readme.txt
+!/impactFactors/source/current/sourceData.zip
 
 # Word documents that may contain nonpublishable comments
 # and details

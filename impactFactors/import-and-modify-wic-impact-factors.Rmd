@@ -7,28 +7,28 @@ by Martin Brown, Martin.Brown@state.or.us
 
 ### Context and Introduction
 
-Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the current file tree.
+Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the wic-base impactFactors folder.
 
-However, those finished impact factors have to come from somewhere.  Their source is modeling within the GABI life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GABI are not immediately usable in WIC.  They need to be imported and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, after which the resulting factors are saved for use elsewhere in WIC.  This R markdown document performs and explains that process. 
+However, those finished impact factors have to come from somewhere.  Their source is modeling within the GaBi life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GaBi are not immediately usable in WIC.  They need to be imported and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, after which the resulting factors are saved for use elsewhere in WIC.  This R markdown document performs and explains that process. 
 
 ### Inputs and outputs
 
-Inputs (stored within the "source" directory of the current file tree)
+Inputs (stored within the "source" directory of the impactFactors folder of the wic-base repository):
 
 * several *.csv files with impact factor data
 * gabiExportDate.txt
 * impactCategoryPickerFixer.xlsx
 
-Outputs (saved within the "distributable" directory of the current file tree)
+Outputs (saved within the "distributable" directory of the impactFactors folder)
 
 * impactFactors.csv
 * impactFactors.RData
 
 ### Rationale for and outline of data processing
 
-WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~80MB).  These should be found in the "source" folder of the current folder tree.
+WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~80MB).  These should be found in the "source" folder of the impactFactors folder of the wic-base repository.
 
-(Note: If the "source" folder is missing or empty, it may be because the Gabi export files are too large for github version control.  You may need to populate the "source" folder from zip files found elsewhere in the [wic-base release](https://github.com/OR-Dept-Environmental-Quality/wic-base/releases).)
+(Note: If the "source" folder in your downloaded repository contains only a zip file, it is because the uncompressed files are too large for github version control.  You can populate the "source" folder by extracting the zip file into the same folder.)
 
 Once the Gabi CSV files are imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved the "distributable" folder within the current folder tree.
 
