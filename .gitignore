@@ -1,6 +1,12 @@
+# all the following are things git and github should ignore
+
 # data files that are too large to push to github
-/impactFactors/source/
+/impactFactors/source/*
+# except for an explanatory readme
 !/impactFactors/source/readme.txt
+!/impactFactors/source/current/
+/impactFactors/source/current/*
+# and a zipped-up compendium of data
 !/impactFactors/source/current/sourceData.zip
 
 # Word documents that may contain nonpublishable comments
