@@ -7,13 +7,13 @@ by Martin Brown, Martin.Brown@state.or.us
 
 ### Context and Introduction
 
-Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "distributable" folder of the wic-base impactFactors folder.
+Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "impactFactors/distributable" folder of the wic-base repository.
 
 However, those finished impact factors have to come from somewhere.  Their source is modeling within the GaBi life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GaBi are not immediately usable in WIC.  They need to be imported and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, after which the resulting factors are saved for use elsewhere in WIC.  This R markdown document performs and explains that process. 
 
 ### Inputs and outputs
 
-Inputs (stored within the "source" directory of the impactFactors folder of the wic-base repository):
+Inputs (stored within the "impactFactors/source" directory of the wic-base repository):
 
 * several *.csv files with impact factor data
 * gabiExportDate.txt
@@ -26,11 +26,11 @@ Outputs (saved within the "distributable" directory of the impactFactors folder)
 
 ### Rationale for and outline of data processing
 
-WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~80MB).  These should be found in the "source" folder of the impactFactors folder of the wic-base repository.
+WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~90MB).  These should be found in the "source" folder of the impactFactors folder of the wic-base repository.
 
-(Note: If the "source" folder in your downloaded repository contains only a zip file, it is because the uncompressed files are too large for github version control.  You can populate the "source" folder by extracting the zip file into the same folder.)
+(Note: If the "source" folder in your downloaded repository contains only a zip file, it is because the uncompressed files are too large for github version control.  You can populate the "source" folder on your local machine by extracting the zip file into the same folder.)
 
-Once the Gabi CSV files are imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved the "distributable" folder within the current folder tree.
+Once the Gabi CSV files are imported, some filtering and relabeling of this voluminous data is necessary to get the impact factor down to a workable level of detail.  Following the method described in the *Technical Overview of the Waste Impact Calculator*, some of the impact factors are adjusted so they better match the life cycle stages relevant to the WIC model.  Finally, the filtered and modified impact factors are saved as data tables for use in other R sessions or use outside of WIC.  Those usable tables are saved in the "impactFactors/distributable" folder of the wic-base repo.
 
 There are some complications along the way.  The most notable is the fact that there are actually 2 different files we need to import...
 
@@ -52,14 +52,21 @@ The following rough steps apply.
 
 ### Setting up
 ```{r}
-# check current working directory
+# check current working directory (should end in 
+# "impactFactors" -- if not change filespecs appropriately)
 getwd()
+```
+```{r}
+# unzip the source files
+unzip(
+  zipfile="source/current/sourceData.zip", 
+  overwrite = TRUE,
+  exdir = "source/current"
+  )
+```
 
-# load helpful R packages
-library(tidyverse)
-library(openxlsx)
-
-# name Gabi "pivot table export" filespecs
+```{r}
+# name Gabi export file filespecs
 csSlashFileSpec  <-
   "source/current/wicFactorsFromGabiIncludingSlashMethod.csv"
 csEpaFcsFileSpec <-
@@ -73,7 +80,20 @@ impactCategoryPickerFixerFileSpec <-
   "source/current/impactCategoryPickerFixer.xlsx"
 
 # misc parameters
-randomFewNo <- 10
+randomFewNo <- 10  # useful for sizing diagnostic printouts
+```
+
+```{r}
+# package version control:
+# checkpoint() asks R to use R packages as of a certain date
+# warning: the first time you use this it can take a while
+library(checkpoint)
+checkpoint(snapshot_date="2021-06-15")
+
+# load R packages useful to this R markdown
+library(tidyverse)
+library(openxlsx)
+
 ```
 
 ### Importing the Gabi CSV's and concatenating them
@@ -175,7 +195,7 @@ csRawObjectPath %>% sample_n(randomFewNo) %>% print()
 
 The impactCategories that WIC needs are in the field Quantity, but they're all mixed up with corporate sources like "TRACI 2.1". Rather than writing a parsing routine, I'm going to refer to a lookup table that will do the parsing -- as well as choose a short list of impact categories to use and apply corrections to the names.
 
-This lookup table is called "impactCategoryPickerFixer.xlsx" and should be found within the "source" folder in the current folder tree.  But if it can't be found, then the following code will create an Excel file in the necessary format:
+This lookup table is called "impactCategoryPickerFixer.xlsx" and should be found within the "source" folder in the current folder tree.  By all means use that file.  But if it can't be found, then the following code will create an Excel file in the necessary format:
 
 ```{r}
 # get all the unique combinations of Quantity Folder, 
@@ -267,19 +287,27 @@ table(csSelected$disposition, csSelected$LCstage, useNA = "ifany")
 
 There are only two LCstages in the table above -- endOfLife and production.  Meanwhile the end-of-life dispositions include transport versions.  Let's assign the end-of-life transport stuff to its own LCstage.
 
-Plus, as of this run, there's something weird going on with Textiles, which has a disposition called "recyclingGeneric <LC>".  That probably needs to be fixed in Gabi, so I will make an "issue" out of it.
+Plus, othere's something weird going on with glass recycling, which has a disposition "recyclingToContainer <LC>". That's some sort of import typo and I will fix it.
 
 ```{r}
 csSelected2 <-
    csSelected %>%
    mutate(
-     # fix that weird Textiles thing
-      disposition = 
-         ifelse(
-            material=="Textiles" & disposition=="recyclingGeneric <LC>",
-            "recyclingGeneric",
-            disposition
-         ),
+     # fix that weird Textiles typo
+      # disposition = 
+      #    ifelse(
+      #       material=="Textiles" & disposition=="recyclingGeneric <LC>",
+      #       "recyclingGeneric",
+      #       disposition
+      #    ),
+     
+      # fix a weird thing about glass recycling
+      disposition =
+        ifelse(
+          disposition=="recylingToContainer <LC>",
+          "recyclingToContainer",
+          disposition
+        ),
       # create the endOfLifeTransport LCstage
       LCstage =
          ifelse(
@@ -328,7 +356,7 @@ junk <-
 table(junk$material,junk$disposition)
 ```
 
-It's food waste.  Is that appropriate? I'll make an "issue" out of it in github.
+It's food waste.  According to Peter Canepa, this is appropriate.
 
 ### Applying the Slash & EpaFcs labels 
 
@@ -375,7 +403,7 @@ impactFactorsSelected <-
 
 ### Saving an "unaltered" import for checking.
 
-At this point the impact factors from Gabi have been imported and filtered, but none of the quantities have been changed.  Let's save  the factors at this point so we can check the import itself against the original Gabi files (if desired).
+At this point the impact factors from Gabi have been imported and filtered, but none of the quantities have been changed.  Let's save  the factors at this point so we can check the import itself against the original Gabi modelling files (if desired).
 
 ```{r}
 write.xlsx(
@@ -389,8 +417,6 @@ As of this writing, every check I have made on the import *process* has been goo
 ### Modifying factors 
 
 What I've got so far (in impactFactorsSelected) is good, but it's a little complex for use in most applications of the Waste Impact Calculator.  This set of factors has transport factors separated out for both production and end of life.  We don't need separate production and production transport factors.  
-
-Moreover the names for the dispositions are really long.  (THIS IS SOMETHING I MIGHT WANT TO NOT FIX IN THE FUTURE...)
 
 To do all this I'm going to have to split the impact factor file up and reassemble it after tweaking appropriately.
 
@@ -436,8 +462,9 @@ And I'm going to set the implied mileage of the end-of-life impact factors.
 ifJunk2 <- mutate(
   ifJunk1,
   cutFlag = case_when(
-    disposition == "reuse" ~ TRUE,
-    disposition == "reuseContainer" ~ TRUE
+    disposition == "reuse" ~ TRUE
+#    ,
+#    disposition == "reuseContainer" ~ TRUE
     )
   ) %>%
   filter(is.na(cutFlag)) %>%
@@ -480,7 +507,7 @@ rm(ifEOLJunk1,  ifJunk1, ifJunk2, ifProdJunk1,
 
 The object impactFactors1 has most of the impact factors in a pretty clean, tidy state, but still needs a few more improvements.
 
-Substantially, the end-of-life transport factor needs to be modified.  Canepa has calculated it so it includes end-of-life transport from the pickup point (e.g. curbside) to final processing.  However, for the purpose of using WIC to decide on local solid waste management this is not really the way to frame the transport.  Local managers are only in control of the first parts of that process... from the pickup point to the local disposal facility or the first recycling marketplace.
+Substantially, the end-of-life transport factor needs to be modified.  Canepa has calculated it so it includes end-of-life transport from the pickup point (e.g. curbside) to final processing.  However, for the purpose of using WIC to decide on local solid waste management this is not really the way to frame the transport.  Local managers are only in control of the first parts of that process... from the pickup point to the local disposal facility or the first recycling marketplace.  This logic is described more in the *Technical Overview* document.
 
 So I need to split up the end-of-life transport factor for each material into two parts... the part managers can control, and those they can't.  
 
@@ -646,7 +673,7 @@ availableMaterialsAndDispositionsFlipped <-
   pivot_wider(
     data = availableMaterialsAndDispositions,
     names_from = "disposition",
-    values_from = "disposition"
+    values_from = available
   ) 
 
 write.xlsx(
@@ -654,3 +681,7 @@ write.xlsx(
   "distributable/availableMaterialsAndDispositions.xlsx"
 )
 ```
+
+Ut oh, I see a little bug.  "recyclingToContainer" appears twice-- once as it should, and another time as "recyclingToContainer <LC>".  gotta fix that.  I'll make a ticket.
+
+But that's enough for today.
