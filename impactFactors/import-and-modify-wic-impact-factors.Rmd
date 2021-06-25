@@ -304,7 +304,7 @@ csSelected2 <-
       # fix a weird thing about glass recycling
       disposition =
         ifelse(
-          disposition=="recylingToContainer <LC>",
+          disposition=="recyclingToContainer <LC>",
           "recyclingToContainer",
           disposition
         ),
@@ -586,7 +586,7 @@ impactFactorsBetter <-
   rename(impactFactor=impactFactor2)
 ```
 
-In addition, I find that the material "nonrecyclables" doesn't a production impact.   (This makes sense, as "nonrecyclables" aren't actually a material -- they're just a collection of miscellaneous things that can't be recycled.)  To fill in the database I'm just going to make an impact factor from the mean of the other materials.  However, other analysts down the line could do a better job by creating weighted average impact factors here based on an observed wastestream. 
+In addition, I find that the material "nonrecyclables" doesn't have a production impact.   (This makes sense, as "nonrecyclables" aren't actually a material -- they're just a collection of miscellaneous things that can't be recycled.)  To fill in the database I'm just going to make an impact factor from the mean of the other materials.  However, other analysts down the line could do a better job by creating weighted average impact factors here based on an observed wastestream. 
 
 ```{r}
 tempProductionImpacts <-
@@ -624,7 +624,17 @@ tempOtherImpacts <-
     impliedMiles=mean(impliedMiles, na.rm=T)
   ) %>%
   ungroup() %>%
-  mutate(material="Other")
+  mutate(material="Other") %>%
+  filter(
+    disposition %in% 
+      c(
+        "incinerationNoER",
+        "landfilling",
+        "production",
+        "incinerationER",
+        "recyclingGeneric"
+      )
+    )
 impactFactorsBetter3 <-
   bind_rows(impactFactorsBetter2, tempOtherImpacts) %>%
   arrange(corporateSource, 
@@ -682,6 +692,3 @@ write.xlsx(
 )
 ```
 
-Ut oh, I see a little bug.  "recyclingToContainer" appears twice-- once as it should, and another time as "recyclingToContainer <LC>".  gotta fix that.  I'll make a ticket.
-
-But that's enough for today.
