@@ -1,5 +1,5 @@
 # wic-base
-This repository contains fundamental data and documentation for the Waste Impact Calculator (WIC) framework. WIC estimates the life cycle environmental impacts (e.g. GHG emissions) associated with solid waste, and projects the impact consequences of solid waste management decisions (e.g. prevention vs. recycling).  WIC is [published in several repos, listed here](https://or-dept-environmental-quality.github.io/wic-base/).  
+This repository contains fundamental data and documentation for the Waste Impact Calculator (WIC) framework. WIC estimates the life cycle environmental impacts (e.g. GHG emissions) associated with solid waste, and projects the impact consequences of solid waste management decisions (e.g. prevention vs. recycling).  WIC is [published in several repos, listed here](https://or-dept-environmental-quality.github.io/wic/).  
 
 The files in this particular repo can be used to:
 
