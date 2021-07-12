@@ -10,7 +10,7 @@ The files in this particular repo can be used to:
 The authors are happy to take comments, positive or negative.  However, please read the [documentation folder](https://github.com/OR-Dept-Environmental-Quality/wic-base/tree/main/documentation) first!
 
 * [Martin Brown](mailto:Martin.Brown@state.or.us) -- overall concept, R programming
-* [Peter Canepa](mailto:Peter.Canepa@state.or.us) -- life cycle impact modeling
+* [Peter Canepa](mailto:Peter.Canepa@state.or.us) -- life cycle impact modeling, GaBi
 
 Oregon Dept. of Environmental Quality
 Portland, Oregon, USA
