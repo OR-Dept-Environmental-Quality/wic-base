@@ -1,5 +1,5 @@
 ---
-title: "Example WIC analysis using R Markdown"
+title: "Example WIC analysis using R Markdown and the wicdata package"
 output:
   word_document: default
   html_document:
@@ -17,7 +17,7 @@ You, the reader, play the part of a waste manager or sustainability analyst from
 * convert a waste management question into waste streams linked to scenario labels in a __*massProfiles*__ table;
 * combine your __*massProfiles*__ with the __*impactFactors*__ table provided by WIC, and filter and summarize the results for each of your scenarios, in multiple impact categories (GHGs, water use, etc.); 
 * delve into the reasons the scenarios differ -- or perhaps, fail to differ much; and finally,
-* reflect on what WIC has and hasn't told you.
+* reflect on what WIC has and hasn't revealed.
 
 Along the way, you'll find pointers on how to properly combine, filter, and summarize WIC's data tables, so that the final results actually represent the scenarios you want to evaluate.  
 
@@ -102,8 +102,20 @@ Your analysis will proceed in this order:
 ### Preparing the R workspace
 
 ```{r}
-# checking working directory
+# checking working directory - because why not?
 getwd()
+
+# installing the wicdata package, containing the impact
+# factors and massProfiles data you will use
+# (you should only need to run this once)
+devtools::install_github(
+  repo="https://github.com/OR-Dept-Environmental-Quality/wic-data",
+  force=TRUE # overwrites any previous version
+  )
+
+# loading the wicdata package and getting "help"
+library(wicdata)
+help(package=wicdata) # brings up a minimal help file
 
 # loading packages useful for the analysis
 library(tidyverse)  # many useful functions for data management
@@ -112,23 +124,19 @@ library(scales)     # useful functions for labeling charts
 library(knitr)      # helps generate formatted output of various kinds
 library(rmarkdown)  # converts RMarkdown documents to other formats
 library(viridis)    # nice & accessible color schemes
-library(svglite)    # helps write charts to SVG files
 ```
 
 ### Loading __*massProfiles*__ and __*impactFactors*__
 
 As you recall from *Technical overview of the Waste Impact Calculator*, the __*massProfiles*__ table describes waste management scenarios by listing, in detail, the mass of each waste material going to specific end-of-life dispositions (e.g. landfilling, recycling), from areas of interest ("wastesheds"), as well as (optionally) setting transport distances for those end-of-life treatments.  Different waste management ideas, or "scenarios", are expressed as different numbers of tons going to different dispositions, and (optionally) different transport distances.
 
-You have prepared a __*massProfiles*__ table representing your five scenarios in a CSV file. Here you load it in to an R data frame, and print it out in a formatted table.
+You have prepared a __*massProfiles*__ table representing your five scenarios.  This table can be in nearly any format that R can import (csv, xlsx, whatever).  But for this tutorial, it's available directly from the "wicdata" package via the name *anyTown*.
 
 ```{r}
-# loading the mass profile data into an R data frame
+# load the mass profile data into an R data frame
 massProfiles <-
-  read.csv(
-    file = "massProfiles.csv", 
-    header = TRUE, 
-    stringsAsFactors = FALSE  
-  )
+  anyTown
+
 # a formatted printout
 kable(
   massProfiles, 
@@ -163,15 +171,11 @@ It appears that the scenario compostFW1000 has the highest weight-based recovery
 
 WIC's other source data table is __*impactFactors*__.  It  contains environmental impact magnitudes for standard weights of solid waste materials, classified by disposition and life cycle stage.
 
-Here you load the complete "impactFactors.csv" file, provided with WIC, into an R data frame, which you name __*impactFactorsAll*__.  Since it is thousands of records long, you print out only a small sample of it to see what it looks like.
+Here you load the complete set of factors provided with WIC, available from the "wicdata" package with the name *wicImpactFactors*, into an R data frame which you name __*impactFactorsAll*__.  Since it is thousands of records long, you print out only a small sample of it to see what it looks like.
 
 ```{r}
 impactFactorsAll <-
-  read.csv(
-    file = "../impactFactors/distributable/impactFactors.csv", 
-    header = TRUE, 
-    stringsAsFactors = FALSE  #
-  )
+  wicImpactFactors
 kable(impactFactorsAll %>% head(20))
 ```
 Many of these records, and some of the diagnostic fields such as *corporateSource* and *gabiExportDate*, are unnecessary for the current analysis.  You cut __*impactFactorsAll*__ down to a manageable size -- using only the materials and dispositions and impact categories that you need -- and save the result as __*impactFactors*__.
@@ -522,9 +526,8 @@ tempWeightChart1 <-
     )
 # printing the chart to the current device
 tempWeightChart1
-# saving the chart as external files
+# saving the chart as external file
 ggsave("chart_output/weights.png")
-ggsave("chart_output/weights.svg")
 ```
 
 That chart shows you that most of the scenarios are similar in terms of total weight, and management changes between scenarios are modest.
@@ -574,9 +577,8 @@ tempWeightChart2 <-
     )
 # printing the chart to the current device
 tempWeightChart2
-# saving the chart as external files
+# saving the chart as external file
 ggsave("chart_output/weightsInd.png")
-ggsave("chart_output/weightsInd.svg")
 ```
 
 This chart shows you your __*massProfiles*__ have described your scenarios fairly.  Yard debris does not change its weight throughout all scenarios, while the treatment of food waste varies somewhat.
@@ -644,7 +646,6 @@ tempImpactChart1 <-
     )
 tempImpactChart1
 ggsave("chart_output/impacts1.png")
-ggsave("chart_output/impacts1.svg")
 ```
 
 These are the net life cycle impacts for Anytown's combined food waste and yard debris in the impact category `r tempImpactCat`.  All scenarios have similar results, but reducing food waste represents a bigger reduction in impact, compared to baseline, than composting.
@@ -687,7 +688,6 @@ tempImpactChart1a <-
     )
 tempImpactChart1a
 ggsave("chart_output/impacts2.png") 
-ggsave("chart_output/impacts2.svg")
 ```
 These results are somewhat repetitive.  In most or all impact categories, total impacts do not differ much between scenarios.  Composting food waste sometimes adds a bit to, and sometimes subtracts a bit from, the baseline impacts. Reducing food waste tends to reduce impacts in all categories, by a somewhat larger but not breathtaking quantity.
 
@@ -740,7 +740,6 @@ tempImpactChart3 <-
   )
 tempImpactChart3
 ggsave("chart_output/impacts4.png")
-ggsave("chart_output/impacts4.svg")
 ```
 
 This display shows you that for many impact categories, baseline, compostFW585 and compostFW1000 have very similar impacts.  The exceptions are the two GWP categories, which represent 1-2% decreases in impact through composting, and ecotoxicity, where impacts actually go up through additional composting.  
@@ -822,7 +821,6 @@ tempImpactChart5 <-
 tempImpactChart5
 # saving the chart to a disk file
 ggsave(filename = "chart_output/impacts5.png")
-ggsave(filename = "chart_output/impacts5.svg")
 ```
 
 This chart shows you several important things:
@@ -897,7 +895,6 @@ tempImpactChart7 <-
 tempImpactChart7
 # saving the chart to a disk file
 ggsave(filename = "chart_output/impacts7.png")
-ggsave(filename = "chart_output/impacts7.svg")
 ```
 For food waste, we know that composting is contributing negative impacts in some impact categories (see earlier table), but it is not showing up in the "endOfLife" areas of the chart above because "endOfLife" also includes landfilling -- and the impacts linked to landfilling are greater than the benefits linked to composting.
 
@@ -947,7 +944,6 @@ tempImpactChart6 <-
 tempImpactChart6
 # saving the chart to a disk file
 ggsave(filename = "chart_output/impacts6.png")
-ggsave(filename = "chart_output/impacts6.svg")
 ```
 When the analysis is limited to yard debris only, as in the chart above, some impact categories show clear benefits linked to composting -- for example, see the "endOfLife" entries for energy demand and GWP100, which are negative numbers.  
 
