@@ -7,7 +7,10 @@ by Martin Brown, Martin.Brown@state.or.us
 
 ### Context and Introduction
 
-Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Application of the Waste Impact Calculator*.  Those finished impact factors are available in the "impactFactors/distributable" folder of the wic-base repository.
+Most WIC users will only be interested in WIC's "finished" impact factors, the ones that can be combined with solid waste data to estimate the life cycle impacts of waste streams -- as illustrated in *Example Applications of the Waste Impact Calculator*.  Those finished impact factors are available in two places:
+
+* most conveniently, as a downloadable R data package, from the [wic-data repository](https://github.com/OR-Dept-Environmental-Quality/wic-data)
+* also, in the "impactFactors/distributable" folder of the [wic-base repository](https://github.com/OR-Dept-Environmental-Quality/wic-base).
 
 However, those finished impact factors have to come from somewhere.  Their source is modeling within the GaBi life cycle assessment system, as documented in *Impact modeling for the Waste Impact Calculator*.  But the factors exported by GaBi are not immediately usable in WIC.  They need to be imported and slightly modified, as described in *Technical Overview of the Waste Impact Calculator*, after which the resulting factors are saved for use elsewhere in WIC.  This R markdown document performs and explains that process. 
 
@@ -26,7 +29,7 @@ Outputs (saved within the "distributable" directory of the impactFactors folder)
 
 ### Rationale for and outline of data processing
 
-WIC's impact factors are defined within Peter Canepa's Gabi life cycle assessment software and then exported via Gabi's "pivot table export," which creates extremely large CSV files (as of this writing, ~90MB).  These should be found in the "source" folder of the impactFactors folder of the wic-base repository.
+WIC's impact factors are defined within Peter Canepa's GaBi life cycle assessment software and then exported via GaBi's "pivot table export," which creates extremely large CSV files (as of this writing, ~90MB).  These should be found in the "source" folder of the impactFactors folder of the wic-base repository.
 
 (Note: If the "source" folder in your downloaded repository contains only a zip file, it is because the uncompressed files are too large for github version control.  The code in this RMarkdown should unzip it, but if not, you can always unzip manually.)
 
@@ -80,7 +83,7 @@ impactCategoryPickerFixerFileSpec <-
   "source/current/impactCategoryPickerFixer.xlsx"
 
 # misc parameters
-randomFewNo <- 10  # useful for sizing diagnostic printouts
+randomFewNo <- 6  # useful for sizing diagnostic printouts
 ```
 
 ```{r}
@@ -88,7 +91,11 @@ randomFewNo <- 10  # useful for sizing diagnostic printouts
 # checkpoint() asks R to use R packages as of a certain date
 # warning: the first time you use this it can take a while
 library(checkpoint)
-checkpoint(snapshot_date="2021-06-15")
+
+checkpoint(
+  checkpoint_location = "C:/Users/mbrown2/Documents/R/my-libraries",
+  snapshot_date="2021-06-15"
+  )
 
 # load R packages useful to this R markdown
 library(tidyverse)
