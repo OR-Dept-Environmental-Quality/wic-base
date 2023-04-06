@@ -88,14 +88,18 @@ randomFewNo <- 6  # useful for sizing diagnostic printouts
 
 ```{r}
 # package version control:
+
+# code below uses the checkpoint() package, and I have 
+# commented it out, because I've been switching to renv()
+
 # checkpoint() asks R to use R packages as of a certain date
 # warning: the first time you use this it can take a while
-library(checkpoint)
-
-checkpoint(
-  checkpoint_location = "C:/Users/mbrown2/Documents/R/my-libraries",
-  snapshot_date="2021-06-15"
-  )
+# library(checkpoint)
+# 
+# checkpoint(
+#   checkpoint_location = "C:/Users/mbrown2/Documents/R/my-libraries",
+#   snapshot_date="2021-06-15"
+#   )
 
 # load R packages useful to this R markdown
 library(tidyverse)
@@ -593,15 +597,47 @@ impactFactorsBetter <-
   rename(impactFactor=impactFactor2)
 ```
 
-In addition, I find that the material "nonrecyclables" doesn't have a production impact.   (This makes sense, as "nonrecyclables" aren't actually a material -- they're just a collection of miscellaneous things that can't be recycled.)  To fill in the database I'm just going to make an impact factor from the mean of the other materials.  However, other analysts down the line could do a better job by creating weighted average impact factors here based on an observed wastestream. 
+In addition, I find that the material "nonrecyclables" doesn't have a production impact.   (This makes sense, as "nonrecyclables" aren't actually a material -- they're just a collection of miscellaneous things that can't be recycled.)  To fill in the database I'm just going to make an impact factor from the mean of the other materials.  
+
+In the past I used a plain mean.  However, this seemed to create exaggerated impacts because super-high impact materials like electronics dominated the mean.
+
+Instead I'm going to use a weighted mean, based on the proportions of materials in the mass profile I created for the EPA's 2018 USA-wide waste data.  Let's load that...
 
 ```{r}
-tempProductionImpacts <-
-  impactFactorsBetter %>%
+usa2018massProfile <-
+  readRDS("source/current/usa2018massProfile.RData")
+usa2018massProportions <-
+  usa2018massProfile %>%
+  filter(material!="Other") %>%
+  group_by(material) %>%
+  summarise(weightByTons=sum(tons)) %>%
+  ungroup() %>%
+  mutate(pctTons=weightByTons/sum(weightByTons))
+glimpse(usa2018massProportions)
+# check that pctTons adds up to 1
+sum(usa2018massProportions$pctTons)
+```
+
+```{r}
+tempProductionImpacts0 <-
+  impactFactorsBetter %>% 
   filter(LCstage=="production") %>%
   select(-impliedMiles) %>%
+  left_join(
+    usa2018massProportions %>% select(-pctTons),
+    by="material"
+  ) %>%
+  filter(!is.na(weightByTons))
+tempProductionImpacts <-
+  tempProductionImpacts0 %>%
   group_by(LCstage, disposition, impactCategory, impactUnits) %>%
-  summarize(productionMean = mean(impactFactor))
+  summarize(
+    productionMean = 
+      weighted.mean(x=impactFactor, w=weightByTons, na.rm=T)
+  ) %>%
+  ungroup()
+rm(tempProductionImpacts0)
+
 impactFactorsBetter2 <-
   left_join(
     impactFactorsBetter,
@@ -621,14 +657,25 @@ impactFactorsBetter2 <-
 
 Finally, I need to address what to do with all of the miscellaneous materials that may turn up in a wastestream but are not specified by Peter C's impact factors.  What I'm going to do is come up with averages for each impact category and disposition, and then apply the material name "Other" to it.  As Peter C's list of impact factors grows, the materials covered by "Other" should shrink.
 
+In the past I used a plain mean.  However, this seemed to create exaggerated impacts because super-high impact materials like electronics dominated the mean.
+
+Instead I'm going to use a weighted mean, based on the proportions of materials in the mass profile I created for the EPA's 2018 USA-wide waste data.  
+
 ```{r}
+tempOtherImpacts0 <-
+  full_join(
+    impactFactorsBetter2,
+    usa2018massProportions %>% select(-pctTons),
+    by="material"
+  )
 tempOtherImpacts <-
-  impactFactorsBetter2 %>%
+  tempOtherImpacts0 %>%
+  filter(!is.na(weightByTons)) %>%
   group_by(LCstage, disposition, corporateSource, 
            impactCategory, impactUnits, impactCategoryLong) %>%
   summarise(
-    impactFactor=mean(impactFactor, na.rm=T),
-    impliedMiles=mean(impliedMiles, na.rm=T)
+    impactFactor=weighted.mean(x=impactFactor, w=weightByTons, na.rm=T),
+    impliedMiles=weighted.mean(x=impliedMiles, w=weightByTons, na.rm=T)
   ) %>%
   ungroup() %>%
   mutate(material="Other") %>%
@@ -647,6 +694,7 @@ impactFactorsBetter3 <-
   arrange(corporateSource, 
           impactCategory, material, LCstage, disposition
   )
+rm(tempOtherImpacts0)
 ```
 
 Now I can save the file with a better name. Also need to add a date stamp here.
@@ -692,7 +740,6 @@ availableMaterialsAndDispositionsFlipped <-
     names_from = "disposition",
     values_from = available
   ) 
-
 write.xlsx(
   availableMaterialsAndDispositionsFlipped,
   "distributable/availableMaterialsAndDispositions.xlsx"
