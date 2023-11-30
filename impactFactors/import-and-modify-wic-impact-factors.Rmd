@@ -693,6 +693,8 @@ rm(tempOtherImpacts0)
 
 Now I can save the file with a better name. Also need to add a date stamp here.
 
+NOVEMBER 2023: I am going the remove the "Slash" versions of GWP.  They are not a complete treatment of biogenic carbon for wood-based products, and the results are causing confusion among users.  For a biogenic treatment it is better to use the EpaFcs variants.
+
 ```{r}
 # applying date stamp & saving with better name
 impactFactorsDEQ <- 
@@ -701,7 +703,9 @@ impactFactorsDEQ <-
     dateStamps %>% mutate(dummy=1),
     by="dummy"
   ) %>%
-  select(-dummy)
+  select(-dummy) %>%
+  filter(impactCategory != "GWP 100 (Slash)" &
+           impactCategory != "GWP 20 (Slash)")
 # deleting temp objects
 rm(impactFactorsBetter, impactFactorsBetter2, impactFactors1,
    tempTransportDifferences, tempLandfillImpact,
