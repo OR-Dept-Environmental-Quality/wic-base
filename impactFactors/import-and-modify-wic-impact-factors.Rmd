@@ -53,6 +53,10 @@ The following rough steps apply.
 * Apply modifications called for in the *Technical Overview*.
 * Save modified factors in suitable formats for future use.
 
+### Technical note
+
+For r package version control, I am using renv().
+
 ### Setting up
 ```{r}
 # check current working directory (should end in 
@@ -87,24 +91,9 @@ randomFewNo <- 6  # useful for sizing diagnostic printouts
 ```
 
 ```{r}
-# package version control:
-
-# code below uses the checkpoint() package, and I have 
-# commented it out, because I've been switching to renv()
-
-# checkpoint() asks R to use R packages as of a certain date
-# warning: the first time you use this it can take a while
-# library(checkpoint)
-# 
-# checkpoint(
-#   checkpoint_location = "C:/Users/mbrown2/Documents/R/my-libraries",
-#   snapshot_date="2021-06-15"
-#   )
-
 # load R packages useful to this R markdown
 library(tidyverse)
 library(openxlsx)
-
 ```
 
 ### Importing the Gabi CSV's and concatenating them
@@ -367,7 +356,7 @@ junk <-
 table(junk$material,junk$disposition)
 ```
 
-It's food waste.  According to Peter Canepa, this is appropriate.
+It's food waste and yard debris.  According to Peter Canepa, this is appropriate.
 
 ### Applying the Slash & EpaFcs labels 
 
@@ -401,6 +390,14 @@ table(
 ```
 
 That looks like it worked.  Now I can remove duplicates.
+
+Except -- wait -- there's something different about natural land transformation.  It's got one fewer records than all the other categories.
+
+... studying it...
+ 
+After looking at this a little, it appears that there is no natural land transformation production impact for Asphalt Shingles -- even though there is a production transport impact.
+
+Gonna have to figure that out later.
 
 ```{r}
 # remove duplicates from impact factor collection
@@ -630,7 +627,8 @@ tempProductionImpacts0 <-
   filter(!is.na(weightByTons))
 tempProductionImpacts <-
   tempProductionImpacts0 %>%
-  group_by(LCstage, disposition, impactCategory, impactUnits) %>%
+  group_by(LCstage, disposition, corporateSource, impactCategory,
+           impactUnits, impactCategoryLong) %>%
   summarize(
     productionMean = 
       weighted.mean(x=impactFactor, w=weightByTons, na.rm=T)
@@ -639,20 +637,16 @@ tempProductionImpacts <-
 rm(tempProductionImpacts0)
 
 impactFactorsBetter2 <-
-  left_join(
-    impactFactorsBetter,
-    tempProductionImpacts,
-    by = c("LCstage", "disposition", "impactCategory", "impactUnits")
-  ) %>%
-  mutate(
-    impactFactor =
-      ifelse(
-        material=="Nonrecyclables" & LCstage=="production",
-        productionMean,
-        impactFactor
+  bind_rows(
+    impactFactorsBetter %>% 
+      filter(!(material=="Nonrecyclables" & disposition=="production")),
+    tempProductionImpacts %>% 
+      rename(impactFactor=productionMean) %>%
+      mutate(
+        impliedMiles=180,
+        material="Nonrecyclables"
       )
-  ) %>%
-  select(-productionMean)
+  )
 ```
 
 Finally, I need to address what to do with all of the miscellaneous materials that may turn up in a wastestream but are not specified by Peter C's impact factors.  What I'm going to do is come up with averages for each impact category and disposition, and then apply the material name "Other" to it.  As Peter C's list of impact factors grows, the materials covered by "Other" should shrink.
@@ -746,3 +740,17 @@ write.xlsx(
 )
 ```
 
+Let's check against duplicates.  Count of each group should be 1.
+
+```{r}
+junkTest <-
+  impactFactorsDEQ %>%
+  group_by(
+    material,
+    LCstage, disposition, impactCategory,
+  ) %>%
+  summarise(
+    myCount=n()
+  )
+table(junkTest$myCount, useNA="always")
+```
